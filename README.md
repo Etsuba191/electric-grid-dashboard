@@ -39,18 +39,4 @@ Backend : Node.js + Express
 
 Database: PostgreSQL / MongoDB
 
-📂 Folder Structure
-csharp
-Copy
-Edit
-electric-grid-dashboard/
-├── public/             # Static assets
-├── src/
-│   ├── components/     # Reusable UI components
-│   ├── pages/          # Dashboard pages
-│   ├── assets/         # Images, icons
-│   ├── data/           # GeoJSON / shapefile data
-│   ├── styles/         # Tailwind & custom styles
-│   ├── App.tsx         # Main app entry
-│   └── index.tsx       # React entry point
-└── package.json
+
