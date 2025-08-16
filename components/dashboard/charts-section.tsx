@@ -25,6 +25,8 @@ interface ChartsSectionProps {
   userRole: "admin" | "user"
 }
 
+
+
 export function ChartsSection({ filters, selectedDate, userRole }: ChartsSectionProps) {
   const [voltageData, setVoltageData] = useState([])
   const [assetData, setAssetData] = useState([])
@@ -55,10 +57,10 @@ export function ChartsSection({ filters, selectedDate, userRole }: ChartsSection
     ]
 
     const generateStatusData = () => [
-      { name: "Normal", value: 78, color: "#10B981" },
+      { name: "Normal", value: 75, color: "#10B981" },
       { name: "Warning", value: 15, color: "#F59E0B" },
       { name: "Critical", value: 5, color: "#EF4444" },
-      { name: "Maintenance", value: 2, color: "#6B7280" },
+      { name: "Maintenance", value: 5, color: "#3B82F6" },
     ]
 
     const generatePerformanceData = () => [
@@ -77,15 +79,15 @@ export function ChartsSection({ filters, selectedDate, userRole }: ChartsSection
   return (
     <div className="space-y-6">
       {/* Voltage Trends */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-white flex items-center space-x-2">
+          <CardTitle className="text-card-foreground flex items-center space-x-2">
             <span>Real-time Grid Parameters</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="voltage" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-slate-700">
+            <TabsList className="grid w-full grid-cols-3 bg-muted">
               <TabsTrigger value="voltage">Voltage</TabsTrigger>
               <TabsTrigger value="current">Current</TabsTrigger>
               <TabsTrigger value="power">Power</TabsTrigger>
@@ -165,9 +167,9 @@ export function ChartsSection({ filters, selectedDate, userRole }: ChartsSection
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Asset Distribution */}
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-white">Asset Distribution</CardTitle>
+            <CardTitle className="text-card-foreground">Asset Distribution</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -189,46 +191,71 @@ export function ChartsSection({ filters, selectedDate, userRole }: ChartsSection
         </Card>
 
         {/* System Status */}
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="text-white">System Status</CardTitle>
+            <CardTitle className="text-card-foreground">System Status</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="flex flex-col items-center space-y-4">
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={statusData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {statusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      color: "hsl(var(--card-foreground))"
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+
+              {/* Legend */}
+              <div className="grid grid-cols-2 gap-3 w-full">
+                {statusData.map((entry, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: entry.color }}
+                    ></div>
+                    <span className="text-sm text-card-foreground font-medium">
+                      {entry.name}
+                    </span>
+                    <span className="text-sm text-muted-foreground ml-auto">
+                      {entry.value}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Performance Metrics */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-white">Performance Metrics</CardTitle>
+          <CardTitle className="text-card-foreground">Performance Metrics</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {performanceData.map((metric, index) => (
               <div key={index} className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-300">{metric.metric}</span>
-                  <span className="text-white font-medium">{metric.value}%</span>
+                  <span className="text-muted-foreground">{metric.metric}</span>
+                  <span className="text-card-foreground font-medium">{metric.value}%</span>
                 </div>
                 <Progress value={metric.value} className="h-2" />
               </div>

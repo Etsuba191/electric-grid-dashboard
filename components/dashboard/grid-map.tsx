@@ -78,15 +78,15 @@ export function GridMap({ filters, userRole }: GridMapProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "normal":
-        return "text-green-400 bg-green-500/20"
+        return "text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-500/20"
       case "warning":
-        return "text-yellow-400 bg-yellow-500/20"
+        return "text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-500/20"
       case "critical":
-        return "text-red-400 bg-red-500/20"
+        return "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-500/20"
       case "maintenance":
-        return "text-gray-400 bg-gray-500/20"
+        return "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20"
       default:
-        return "text-gray-400 bg-gray-500/20"
+        return "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20"
     }
   }
 
@@ -121,10 +121,10 @@ export function GridMap({ filters, userRole }: GridMapProps) {
   }
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700">
+    <Card className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-white">Grid Infrastructure Map</CardTitle>
+          <CardTitle className="text-slate-900 dark:text-white">Grid Infrastructure Map</CardTitle>
           <div className="flex space-x-2">
             <Button variant={mapView === "grid" ? "default" : "outline"} size="sm" onClick={() => setMapView("grid")}>
               Grid
@@ -141,7 +141,7 @@ export function GridMap({ filters, userRole }: GridMapProps) {
       </CardHeader>
       <CardContent>
         {/* Simulated Map Area */}
-        <div className="relative bg-slate-900 rounded-lg h-96 overflow-hidden border border-slate-600">
+        <div className="relative bg-slate-100 dark:bg-slate-900 rounded-lg h-96 overflow-hidden border border-slate-300 dark:border-slate-600">
           {/* Grid Background */}
           <div className="absolute inset-0 opacity-20">
             <svg width="100%" height="100%">
@@ -193,8 +193,8 @@ export function GridMap({ filters, userRole }: GridMapProps) {
                 key={asset.id}
                 className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                   selectedAsset?.id === asset.id
-                    ? "bg-slate-700 border-blue-500"
-                    : "bg-slate-800/50 border-slate-600 hover:bg-slate-700"
+                    ? "bg-slate-100 dark:bg-slate-700 border-blue-500"
+                    : "bg-white dark:bg-slate-800/50 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
                 }`}
                 onClick={() => setSelectedAsset(asset)}
               >
@@ -204,8 +204,8 @@ export function GridMap({ filters, userRole }: GridMapProps) {
                       <AssetIcon className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-white font-medium">{asset.name}</p>
-                      <p className="text-sm text-slate-400 capitalize">{asset.type}</p>
+                      <p className="text-slate-900 dark:text-white font-medium">{asset.name}</p>
+                      <p className="text-sm text-blue-600 dark:text-slate-400 capitalize">{asset.type}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -217,22 +217,22 @@ export function GridMap({ filters, userRole }: GridMapProps) {
                 </div>
 
                 {selectedAsset?.id === asset.id && (
-                  <div className="mt-3 pt-3 border-t border-slate-600 grid grid-cols-2 gap-4 text-sm">
+                  <div className="mt-3 pt-3 border-t border-slate-300 dark:border-slate-600 grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-slate-400">Voltage</p>
-                      <p className="text-white font-medium">{asset.voltage.toLocaleString()} V</p>
+                      <p className="text-blue-600 dark:text-slate-400">Voltage</p>
+                      <p className="text-slate-900 dark:text-white font-medium">{asset.voltage.toLocaleString()} V</p>
                     </div>
                     <div>
-                      <p className="text-slate-400">Load</p>
-                      <p className="text-white font-medium">{asset.load}%</p>
+                      <p className="text-blue-600 dark:text-slate-400">Load</p>
+                      <p className="text-slate-900 dark:text-white font-medium">{asset.load}%</p>
                     </div>
                     <div>
-                      <p className="text-slate-400">Last Update</p>
-                      <p className="text-white font-medium">{asset.lastUpdate}</p>
+                      <p className="text-blue-600 dark:text-slate-400">Last Update</p>
+                      <p className="text-slate-900 dark:text-white font-medium">{asset.lastUpdate}</p>
                     </div>
                     <div>
-                      <p className="text-slate-400">Status</p>
-                      <p className="text-white font-medium capitalize">{asset.status}</p>
+                      <p className="text-blue-600 dark:text-slate-400">Status</p>
+                      <p className="text-slate-900 dark:text-white font-medium capitalize">{asset.status}</p>
                     </div>
                   </div>
                 )}

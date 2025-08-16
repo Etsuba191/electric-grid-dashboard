@@ -41,18 +41,26 @@ INSERT INTO users (id, username, email, role) VALUES
 ('user_002', 'operator1', 'operator1@gridmonitor.com', 'operator'),
 ('user_003', 'viewer1', 'viewer1@gridmonitor.com', 'viewer');
 
--- Insert sample real-time measurements (last 24 hours)
-INSERT INTO measurements (asset_id, voltage, current, power, frequency, temperature, measured_at) 
-SELECT 
-    'sub_001',
-    138000 + (RAND() - 0.5) * 2000,
-    850 + (RAND() - 0.5) * 100,
-    117300 + (RAND() - 0.5) * 10000,
+-- Insert more realistic sample real-time measurements for all relevant assets (last 24 hours)
+-- This will generate 50 measurements for each asset of the specified types.
+INSERT INTO measurements (asset_id, voltage, current, power, frequency, temperature, measured_at)
+WITH RECURSIVE numbers AS (
+  SELECT 0 AS n
+  UNION ALL
+  SELECT n + 1 FROM numbers WHERE n < 49
+)
+SELECT
+    a.id,
+    a.voltage * (1 + (RAND() - 0.5) * 0.05), -- voltage fluctuates by +/- 2.5%
+    (a.load_percentage / 100) * (a.capacity / a.voltage) * (1 + (RAND() - 0.5) * 0.1), -- Estimated current based on load
+    a.load_percentage / 100 * a.capacity * (1 + (RAND() - 0.5) * 0.1), -- Estimated power based on load
     60.0 + (RAND() - 0.5) * 0.2,
-    75 + (RAND() - 0.5) * 10,
-    DATE_SUB(NOW(), INTERVAL FLOOR(RAND() * 1440) MINUTE)
-FROM 
-    (SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5) t1,
-    (SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5) t2,
-    (SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5) t3
-LIMIT 100;
+    CASE a.status
+        WHEN 'warning' THEN 85 + (RAND() * 10)
+        WHEN 'critical' THEN 95 + (RAND() * 10)
+        ELSE 60 + (RAND() * 15)
+    END,
+    DATE_SUB(NOW(), INTERVAL (numbers.n * 30 + FLOOR(RAND() * 30)) MINUTE) -- Measurements over the last 25 hours
+FROM
+    assets a CROSS JOIN numbers
+WHERE a.type IN ('substation', 'transformer', 'generator', 'transmission');

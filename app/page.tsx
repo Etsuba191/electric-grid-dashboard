@@ -1,27 +1,34 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { LeafletMap } from "@/components/dashboard/leaflet-map"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { TopStats } from "@/components/dashboard/top-stats"
 import { ChartsSection } from "@/components/dashboard/charts-section"
 import { GridMap } from "@/components/dashboard/grid-map"
-import { CustomMap } from "@/components/dashboard/custom-map"
 import { CalendarWidget } from "@/components/dashboard/calendar-widget"
 import { SearchFilters } from "@/components/dashboard/search-filters"
-import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
-import { loadEthiopianData, type EthiopianGridAsset } from "@/lib/ethiopia-data"
 import { GridStatus } from "@/components/pages/grid-status"
 import { Analytics } from "@/components/pages/analytics"
 import { AlertsPage } from "@/components/pages/alerts"
 import { UsersPage } from "@/components/pages/users"
 import { SettingsPage } from "@/components/pages/settings"
 import { AboutPage } from "@/components/pages/about"
+import { Toaster } from "@/components/ui/toaster"
+import {
+  loadProcessedAssets,
+  convertToEthiopianGridAssets,
+} from "@/lib/processed-data"
+// Assuming EthiopianGridAsset is an exported type. If not, you may need to define it.
+import type { EthiopianGridAsset } from "@/lib/processed-data"
 
 export default function Dashboard() {
   const [userRole, setUserRole] = useState<"admin" | "user">("admin")
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [sidebarOpen, setSidebarOpen] = useState(false) // Start closed on mobile
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  // Set initial map view to be centered on Ethiopia
+  const [mapCenter] = useState<[number, number]>([9.145, 40.4897])
+  const [mapZoom] = useState<number>(7)
   const [filters, setFilters] = useState({
     location: "",
     assetType: "",
@@ -29,18 +36,25 @@ export default function Dashboard() {
     searchQuery: "",
   })
   const [currentPage, setCurrentPage] = useState("dashboard")
-  const [ethiopianAssets, setEthiopianAssets] = useState<EthiopianGridAsset[]>([])
+  const [gridAssets, setGridAssets] = useState<ProcessedAsset[]>([])
+  const [zoneData, setZoneData] = useState<GeoJSON.FeatureCollection | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Set the date on the client to avoid hydration mismatch
+    setSelectedDate(new Date())
+
     const loadData = async () => {
       try {
         setLoading(true)
-        const assets = await loadEthiopianData()
-        setEthiopianAssets(assets)
-        console.log(`Loaded ${assets.length} Ethiopian grid assets`)
+        // Load all asset and zone data concurrently
+        // Load processed dataset once
+        const assets = await loadProcessedAssets()
+        setGridAssets(assets)
+        // Zones optional, keep null unless needed
+        setZoneData(null)
       } catch (error) {
-        console.error("Failed to load Ethiopian data:", error)
+        console.error("Failed to load GeoJSON data:", error)
       } finally {
         setLoading(false)
       }
@@ -53,39 +67,44 @@ export default function Dashboard() {
     if (loading) {
       return (
         <div className="flex items-center justify-center h-full">
-          <div className="text-white text-xl">Loading Ethiopian Grid Data...</div>
+          <div className="text-foreground text-xl">Loading Grid Data...</div>
         </div>
       )
     }
 
     switch (currentPage) {
       case "grid":
-        return <GridStatus assets={ethiopianAssets} />
+        return <GridStatus assets={gridAssets as any} />
       case "analytics":
-        return <Analytics assets={ethiopianAssets} />
+        return <Analytics assets={gridAssets as any} />
       case "alerts":
-        return <AlertsPage assets={ethiopianAssets} />
+        // Convert ProcessedAsset[] to EthiopianGridAsset[] for AlertsPage
+        const ethiopianGridAssets = convertToEthiopianGridAssets(gridAssets);
+        return <AlertsPage assets={ethiopianGridAssets} />
       case "users":
         return <UsersPage />
       case "settings":
-        return <SettingsPage />
+        return <SettingsPage assets={gridAssets as any} />
       case "about":
-        return <AboutPage />
+        return <AboutPage assets={gridAssets as any} />
       case "map":
-        return <CustomMap assets={ethiopianAssets} filters={filters} userRole={userRole} />
+        return (
+          <LeafletMap assets={gridAssets as any} zoneData={zoneData} filters={filters} userRole={userRole} />
+        )
       case "dashboard":
       default:
         return (
           <div className="space-y-6">
-            <SearchFilters filters={filters} onFiltersChange={setFilters} userRole={userRole} />
-            <TopStats filters={filters} />
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <div className="xl:col-span-2 space-y-6">
+            <SearchFilters assets={gridAssets as any} filters={filters} onFiltersChange={setFilters} userRole={userRole} />
+            <TopStats assets={gridAssets as any} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+              <div className="lg:col-span-2 space-y-4 md:space-y-6">
                 <ChartsSection filters={filters} selectedDate={selectedDate} userRole={userRole} />
               </div>
-              <div className="space-y-6">
-                <CalendarWidget selectedDate={selectedDate} onDateChange={setSelectedDate} />
-                <GridMap filters={filters} userRole={userRole} />
+              <div className="space-y-4 md:space-y-6">
+                {selectedDate && (
+                  <CalendarWidget selectedDate={selectedDate} onDateChange={setSelectedDate} assets={gridAssets as any} />
+                )}
               </div>
             </div>
           </div>
@@ -94,23 +113,23 @@ export default function Dashboard() {
   }
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      <div className="flex h-screen bg-slate-950 text-white overflow-hidden">
-        <Sidebar
-          isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
-          userRole={userRole}
-          onRoleChange={setUserRole}
-          currentPage={currentPage}
-          onPageChange={setCurrentPage}
-        />
+    <div className="flex h-screen bg-background text-foreground overflow-hidden">
+      <Sidebar
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        userRole={userRole}
+        onRoleChange={setUserRole}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
+      />
 
-        <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-16"} overflow-auto`}>
-          <div className="p-6">{renderCurrentPage()}</div>
-        </main>
+      <main className={`flex-1 transition-all duration-300 ${
+        sidebarOpen ? "ml-64" : "ml-0 md:ml-16"
+      } overflow-auto`}>
+        <div className="p-3 md:p-6">{renderCurrentPage()}</div>
+      </main>
 
-        <Toaster />
-      </div>
-    </ThemeProvider>
+      <Toaster />
+    </div>
   )
 }

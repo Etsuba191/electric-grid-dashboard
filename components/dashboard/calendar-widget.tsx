@@ -5,10 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ChevronLeft, ChevronRight, Calendar, AlertTriangle, Settings, Zap } from "lucide-react"
+import type { ProcessedAsset } from "@/lib/processed-data"
 
 interface CalendarWidgetProps {
   selectedDate: Date
   onDateChange: (date: Date) => void
+  assets?: ProcessedAsset[]
 }
 
 interface CalendarEvent {
@@ -19,38 +21,75 @@ interface CalendarEvent {
   severity?: "low" | "medium" | "high"
 }
 
-export function CalendarWidget({ selectedDate, onDateChange }: CalendarWidgetProps) {
+export function CalendarWidget({ selectedDate, onDateChange, assets = [] }: CalendarWidgetProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [events] = useState<CalendarEvent[]>([
-    {
-      id: "1",
-      title: "Substation A Maintenance",
-      date: new Date(2024, 0, 15),
-      type: "maintenance",
-      severity: "medium",
-    },
-    {
-      id: "2",
-      title: "Power Outage - Grid 5",
-      date: new Date(2024, 0, 18),
-      type: "outage",
-      severity: "high",
-    },
-    {
-      id: "3",
-      title: "Transformer Inspection",
-      date: new Date(2024, 0, 22),
-      type: "inspection",
-      severity: "low",
-    },
-    {
-      id: "4",
-      title: "Critical Alert - Line 401",
-      date: new Date(2024, 0, 25),
-      type: "alert",
-      severity: "high",
-    },
-  ])
+
+  // Generate events based on real asset data
+  const generateEventsFromAssets = (): CalendarEvent[] => {
+    const events: CalendarEvent[] = []
+    const now = new Date()
+
+    // Generate maintenance events for assets with poor status
+    assets.forEach((asset, index) => {
+      const status = (asset.status || "").toLowerCase()
+
+      if (status === "poor" || status === "critical") {
+        const maintenanceDate = new Date(now)
+        maintenanceDate.setDate(now.getDate() + (index % 30) + 1) // Spread over next 30 days
+
+        events.push({
+          id: `maintenance_${asset.id}`,
+          title: `Maintenance: ${asset.name || asset.id}`,
+          date: maintenanceDate,
+          type: "maintenance",
+          severity: status === "critical" ? "high" : "medium"
+        })
+      }
+
+      if (status === "warning") {
+        const inspectionDate = new Date(now)
+        inspectionDate.setDate(now.getDate() + (index % 14) + 1) // Spread over next 14 days
+
+        events.push({
+          id: `inspection_${asset.id}`,
+          title: `Inspection: ${asset.name || asset.id}`,
+          date: inspectionDate,
+          type: "inspection",
+          severity: "low"
+        })
+      }
+    })
+
+    // Add some system-wide events
+    const systemEvents = [
+      {
+        id: "system_maintenance_1",
+        title: "Scheduled System Maintenance",
+        date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7),
+        type: "maintenance" as const,
+        severity: "medium" as const
+      },
+      {
+        id: "grid_inspection_1",
+        title: "Monthly Grid Inspection",
+        date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 15),
+        type: "inspection" as const,
+        severity: "low" as const
+      },
+      {
+        id: "backup_test_1",
+        title: "Backup System Test",
+        date: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 21),
+        type: "maintenance" as const,
+        severity: "low" as const
+      }
+    ]
+
+    events.push(...systemEvents)
+    return events
+  }
+
+  const [events] = useState<CalendarEvent[]>(generateEventsFromAssets())
 
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()
@@ -80,7 +119,7 @@ export function CalendarWidget({ selectedDate, onDateChange }: CalendarWidgetPro
       case "alert":
         return severity === "high" ? "bg-red-500/20 text-red-400" : "bg-yellow-500/20 text-yellow-400"
       default:
-        return "bg-gray-500/20 text-gray-400"
+        return "bg-muted text-muted-foreground"
     }
   }
 
@@ -132,27 +171,27 @@ export function CalendarWidget({ selectedDate, onDateChange }: CalendarWidgetPro
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700">
+    <Card className="bg-card border-border">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-white">Grid Events Calendar</CardTitle>
+          <CardTitle className="text-card-foreground">Grid Events Calendar</CardTitle>
           <div className="flex items-center space-x-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigateMonth("prev")}
-              className="text-slate-400 hover:text-white"
+              className="text-muted-foreground hover:text-card-foreground"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-white font-medium min-w-[120px] text-center">
+            <span className="text-card-foreground font-medium min-w-[120px] text-center">
               {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
             </span>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigateMonth("next")}
-              className="text-slate-400 hover:text-white"
+              className="text-muted-foreground hover:text-card-foreground"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -163,7 +202,7 @@ export function CalendarWidget({ selectedDate, onDateChange }: CalendarWidgetPro
         {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-1 mb-4">
           {dayNames.map((day) => (
-            <div key={day} className="p-2 text-center text-xs font-medium text-slate-400">
+            <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground">
               {day}
             </div>
           ))}
@@ -191,8 +230,8 @@ export function CalendarWidget({ selectedDate, onDateChange }: CalendarWidgetPro
                   isSelected
                     ? "bg-blue-600 text-white"
                     : isToday
-                      ? "bg-slate-700 text-white"
-                      : "hover:bg-slate-700 text-slate-300"
+                      ? "bg-accent text-accent-foreground"
+                      : "hover:bg-accent text-card-foreground"
                 }`}
                 onClick={() => onDateChange(date)}
               >
@@ -207,7 +246,7 @@ export function CalendarWidget({ selectedDate, onDateChange }: CalendarWidgetPro
 
         {/* Events for Selected Date */}
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-white">Events for {selectedDate.toLocaleDateString()}</h4>
+          <h4 className="text-sm font-medium text-card-foreground">Events for {selectedDate.toLocaleDateString()}</h4>
           {getEventsForDate(selectedDate).length > 0 ? (
             getEventsForDate(selectedDate).map((event) => {
               const EventIcon = getEventIcon(event.type)
@@ -229,7 +268,7 @@ export function CalendarWidget({ selectedDate, onDateChange }: CalendarWidgetPro
               )
             })
           ) : (
-            <p className="text-sm text-slate-400">No events scheduled</p>
+            <p className="text-sm text-muted-foreground">No events scheduled</p>
           )}
         </div>
       </CardContent>

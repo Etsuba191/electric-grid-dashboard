@@ -4,119 +4,146 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Zap, AlertTriangle, CheckCircle, Settings, Search } from "lucide-react"
-import type { EthiopianGridAsset } from "@/lib/ethiopia-data"
+import { Zap, AlertTriangle, CheckCircle, Settings, Search, Info, Download } from "lucide-react"
+import type { ProcessedAsset } from "@/lib/processed-data"
+import { exportToCSV } from "@/lib/processed-data"
 
 interface GridStatusProps {
-  assets: EthiopianGridAsset[]
+  assets: ProcessedAsset[]
 }
 
 export function GridStatus({ assets }: GridStatusProps) {
-  const [filteredAssets, setFilteredAssets] = useState<EthiopianGridAsset[]>(assets)
+  const [filteredAssets, setFilteredAssets] = useState<ProcessedAsset[]>(assets)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [regionFilter, setRegionFilter] = useState("all")
-
-  const regions = Array.from(new Set(assets.map((asset) => asset.region)))
+  const [typeFilter, setTypeFilter] = useState("all")
 
   useEffect(() => {
     let filtered = assets
 
     if (searchQuery) {
-      filtered = filtered.filter(
-        (asset) =>
-          asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          asset.region.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
+      const q = searchQuery.toLowerCase()
+      filtered = filtered.filter((a) => {
+        if (a.source === "tower") {
+          return (
+            (a.name || "").toLowerCase().includes(q) ||
+            (a.site || "").toLowerCase().includes(q) ||
+            (a.zone || "").toLowerCase().includes(q) ||
+            (a.woreda || "").toLowerCase().includes(q) ||
+            (a.category || "").toLowerCase().includes(q)
+          )
+        } else {
+          return (
+            (a.name || "").toLowerCase().includes(q) ||
+            (a.poletical || "").toLowerCase().includes(q) ||
+            String(a.voltage_le || "").toLowerCase().includes(q) ||
+            (a.voltage_sp || "").toLowerCase().includes(q)
+          )
+        }
+      })
+    }
+
+    if (typeFilter !== "all") {
+      filtered = filtered.filter((a) => (typeFilter === "substation" ? a.source === "substation" : a.source === "tower"))
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter((asset) => asset.status === statusFilter)
-    }
-
-    if (regionFilter !== "all") {
-      filtered = filtered.filter((asset) => asset.region === regionFilter)
+      filtered = filtered.filter((a) => (a.source === "tower" ? (a.status || "").toLowerCase() === statusFilter : false))
     }
 
     setFilteredAssets(filtered)
-  }, [assets, searchQuery, statusFilter, regionFilter])
+  }, [assets, searchQuery, statusFilter, typeFilter])
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "normal":
-        return CheckCircle
-      case "warning":
-        return AlertTriangle
-      case "critical":
-        return AlertTriangle
-      case "maintenance":
-        return Settings
-      default:
-        return Zap
+  const getStatusIcon = (asset: ProcessedAsset) => {
+    if (asset.source === "tower") {
+      switch ((asset.status || "").toLowerCase()) {
+        case "normal":
+        case "good":
+          return CheckCircle
+        case "warning":
+          return AlertTriangle
+        case "critical":
+          return AlertTriangle
+        case "maintenance":
+          return Settings
+        default:
+          return Info
+      }
     }
+    return Zap
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "normal":
-        return "text-green-400 bg-green-500/20"
-      case "warning":
-        return "text-yellow-400 bg-yellow-500/20"
-      case "critical":
-        return "text-red-400 bg-red-500/20"
-      case "maintenance":
-        return "text-gray-400 bg-gray-500/20"
-      default:
-        return "text-gray-400 bg-gray-500/20"
-    }
+  const getStatusBadge = (asset: ProcessedAsset) => {
+    if (asset.source !== "tower") return null
+    const s = (asset.status || "").toLowerCase()
+    const color =
+      s === "normal" || s === "good"
+        ? "text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-500/20"
+        : s === "warning"
+          ? "text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-500/20"
+          : s === "critical"
+            ? "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-500/20"
+            : s === "maintenance"
+              ? "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20"
+              : "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20"
+    return <Badge className={color}>{asset.status}</Badge>
+  }
+
+  const handleExportCSV = () => {
+    exportToCSV(filteredAssets, 'grid_status')
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-white">Grid Status</h1>
-        <Badge variant="outline" className="text-white">
-          {filteredAssets.length} Assets
-        </Badge>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Grid Status</h1>
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="text-slate-900 dark:text-white border-slate-300 dark:border-slate-700">
+            {filteredAssets.length} Assets
+          </Badge>
+          <Button onClick={handleExportCSV} className="flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
-      <Card className="bg-slate-800/50 border-slate-700">
+      <Card className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-500 dark:text-slate-400" />
               <Input
-                placeholder="Search assets..."
+                placeholder="Search towers/substations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-slate-700 border-slate-600 text-white"
+                className="pl-10 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48 bg-slate-700 border-slate-600 text-white">
-                <SelectValue placeholder="Filter by status" />
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-full sm:w-48 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white">
+                <SelectValue placeholder="Filter by type" />
               </SelectTrigger>
-              <SelectContent className="bg-slate-700 border-slate-600">
+              <SelectContent className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600">
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="tower">Electric Towers</SelectItem>
+                <SelectItem value="substation">Substations</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white">
+                <SelectValue placeholder="Filter by status (towers)" />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600">
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="good">Good</SelectItem>
+                <SelectItem value="excellent">Excellent</SelectItem>
                 <SelectItem value="warning">Warning</SelectItem>
                 <SelectItem value="critical">Critical</SelectItem>
                 <SelectItem value="maintenance">Maintenance</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={regionFilter} onValueChange={setRegionFilter}>
-              <SelectTrigger className="w-48 bg-slate-700 border-slate-600 text-white">
-                <SelectValue placeholder="Filter by region" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-700 border-slate-600">
-                <SelectItem value="all">All Regions</SelectItem>
-                {regions.map((region) => (
-                  <SelectItem key={region} value={region}>
-                    {region}
-                  </SelectItem>
-                ))}
               </SelectContent>
             </Select>
           </div>
@@ -124,37 +151,57 @@ export function GridStatus({ assets }: GridStatusProps) {
       </Card>
 
       {/* Assets Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         {filteredAssets.slice(0, 50).map((asset) => {
-          const StatusIcon = getStatusIcon(asset.status)
+          const StatusIcon = getStatusIcon(asset)
           return (
-            <Card key={asset.id} className="bg-slate-800/50 border-slate-700 hover:bg-slate-800/70 transition-colors">
+            <Card key={asset.id} className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/70 transition-colors">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg text-white truncate">{asset.name}</CardTitle>
-                  <Badge className={getStatusColor(asset.status)}>
-                    <StatusIcon className="h-3 w-3 mr-1" />
-                    {asset.status}
-                  </Badge>
+                  <CardTitle className="text-lg text-slate-900 dark:text-white truncate">{asset.name || (asset.source === "tower" ? "Tower" : "Substation")}</CardTitle>
+                  {getStatusBadge(asset)}
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-sm">
+                  {asset.source === "tower" ? (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-blue-600 dark:text-slate-400">Site:</span>
+                        <span className="text-slate-900 dark:text-white">{asset.site || "-"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-600 dark:text-slate-400">Zone:</span>
+                        <span className="text-slate-900 dark:text-white">{asset.zone || "-"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-600 dark:text-slate-400">Woreda:</span>
+                        <span className="text-slate-900 dark:text-white">{asset.woreda || "-"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-600 dark:text-slate-400">Category:</span>
+                        <span className="text-slate-900 dark:text-white">{asset.category || "-"}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-blue-600 dark:text-slate-400">Poletical:</span>
+                        <span className="text-slate-900 dark:text-white">{asset.poletical || "-"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-600 dark:text-slate-400">Voltage LE:</span>
+                        <span className="text-slate-900 dark:text-white">{asset.voltage_le !== undefined ? `${asset.voltage_le} kV` : "-"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-blue-600 dark:text-slate-400">Voltage SP:</span>
+                        <span className="text-slate-900 dark:text-white">{asset.voltage_sp || "-"}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Region:</span>
-                    <span className="text-white">{asset.region}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Type:</span>
-                    <span className="text-white capitalize">{asset.type}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Load:</span>
-                    <span className="text-white">{asset.load.toFixed(1)}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Voltage:</span>
-                    <span className="text-white">{asset.voltage.toLocaleString()} V</span>
+                    <span className="text-blue-600 dark:text-slate-400">Lat/Lng:</span>
+                    <span className="text-slate-900 dark:text-white">{asset.lat.toFixed(3)}, {asset.lng.toFixed(3)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -164,11 +211,9 @@ export function GridStatus({ assets }: GridStatusProps) {
       </div>
 
       {filteredAssets.length > 50 && (
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
           <CardContent className="p-4 text-center">
-            <p className="text-slate-400">
-              Showing 50 of {filteredAssets.length} assets. Use filters to narrow down results.
-            </p>
+            <p className="text-slate-600 dark:text-slate-400">Showing 50 of {filteredAssets.length} assets. Use filters to narrow down results.</p>
           </CardContent>
         </Card>
       )}

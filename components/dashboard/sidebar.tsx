@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import {
   LayoutDashboard,
   Settings,
@@ -17,8 +18,10 @@ import {
   ChevronRight,
   Sun,
   Moon,
+  Menu,
 } from "lucide-react"
 import { useTheme } from "next-themes"
+import { useEffect, useState } from "react"
 
 interface SidebarProps {
   isOpen: boolean
@@ -31,6 +34,17 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage, onPageChange }: SidebarProps) {
   const { theme, setTheme } = useTheme()
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   const menuItems = [
     { id: "dashboard", icon: LayoutDashboard, label: "Dashboard", admin: false },
@@ -45,38 +59,36 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
 
   const filteredItems = menuItems.filter((item) => !item.admin || userRole === "admin")
 
-  return (
-    <div
-      className={`fixed left-0 top-0 h-full bg-slate-900 border-r border-slate-800 transition-all duration-300 z-50 ${
-        isOpen ? "w-64" : "w-16"
-      }`}
-    >
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full bg-blue-600 dark:bg-slate-900 border-r border-blue-700 dark:border-slate-800">
       {/* Header */}
-      <div className="p-4 border-b border-slate-800">
+      <div className="p-4 border-b border-blue-700 dark:border-slate-800">
         <div className="flex items-center justify-between">
-          {isOpen && (
+          {(isOpen || isMobile) && (
             <div className="flex items-center space-x-2">
-              <Zap className="h-8 w-8 text-blue-400" />
-              <span className="text-xl font-bold text-white">GridMonitor</span>
+              <Zap className="h-8 w-8 text-white dark:text-blue-400" />
+              <span className="text-xl font-bold text-white dark:text-white">GridMonitor</span>
             </div>
           )}
-          <Button variant="ghost" size="sm" onClick={onToggle} className="text-slate-400 hover:text-white">
-            {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </Button>
+          {!isMobile && (
+            <Button variant="ghost" size="sm" onClick={onToggle} className="text-white hover:text-white/90 dark:text-slate-400 dark:hover:text-white">
+              {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Profile Section */}
-      <div className="p-4 border-b border-slate-800">
+      <div className="p-4 border-b border-blue-700 dark:border-slate-800">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src="/placeholder.svg?height=40&width=40" />
             <AvatarFallback className="bg-blue-600">{userRole === "admin" ? "AD" : "US"}</AvatarFallback>
           </Avatar>
-          {isOpen && (
+          {(isOpen || isMobile) && (
             <div className="flex-1">
               <div className="flex items-center space-x-2">
-                <p className="text-sm font-medium text-white">
+                <p className="text-sm font-medium text-white dark:text-white">
                   {userRole === "admin" ? "Admin User" : "Grid Operator"}
                 </p>
                 <Badge variant={userRole === "admin" ? "default" : "secondary"} className="text-xs">
@@ -84,14 +96,14 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
                   {userRole.toUpperCase()}
                 </Badge>
               </div>
-              <p className="text-xs text-slate-400">Ethiopian Power Grid</p>
+              <p className="text-xs text-white/80 dark:text-slate-400">Ethiopian Power Grid</p>
             </div>
           )}
         </div>
 
-        {isOpen && (
+        {(isOpen || isMobile) && (
           <div className="mt-3 space-y-2">
-            <div className="flex items-center justify-between text-xs text-slate-400">
+            <div className="flex items-center justify-between text-xs text-white/80 dark:text-slate-400">
               <span>Role:</span>
               <Switch
                 checked={userRole === "admin"}
@@ -103,41 +115,81 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 p-4">
+      <nav className="flex-1 p-4 overflow-y-auto">
         <ul className="space-y-2">
           {filteredItems.map((item) => (
             <li key={item.id}>
               <Button
-                variant={currentPage === item.id ? "secondary" : "ghost"}
-                className={`w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800 ${
-                  currentPage === item.id ? "bg-slate-800 text-white" : ""
-                } ${!isOpen ? "px-2" : ""}`}
-                onClick={() => onPageChange(item.id)}
+                variant="ghost"
+                className={`w-full justify-start ${
+                  currentPage === item.id
+                    ? "bg-blue-700 text-white dark:bg-slate-800 dark:text-white"
+                    : "text-white hover:bg-blue-500/40 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800"
+                } ${!(isOpen || isMobile) ? "px-2" : ""}`}
+                onClick={() => {
+                  onPageChange(item.id)
+                  if (isMobile) {
+                    onToggle() // Close mobile sidebar after selection
+                  }
+                }}
               >
-                <item.icon className={`h-5 w-5 ${isOpen ? "mr-3" : ""}`} />
-                {isOpen && item.label}
+                <item.icon className={`h-5 w-5 ${(isOpen || isMobile) ? "mr-3" : ""}`} />
+                {(isOpen || isMobile) && item.label}
               </Button>
             </li>
           ))}
         </ul>
       </nav>
 
-      {/* Theme Toggle */}
-      {isOpen && (
-        <div className="p-4 border-t border-slate-800">
-          <div className="flex items-center justify-between text-sm text-slate-400">
+      {/* Theme Toggle - Always visible in admin mode or when sidebar is open */}
+      {(isOpen || isMobile) && (
+        <div className="p-4 border-t border-blue-700 dark:border-slate-800 mt-auto">
+          <div className="flex items-center justify-between text-sm text-white dark:text-slate-400">
             <span>Theme</span>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="text-slate-400 hover:text-white"
+              className="text-white hover:text-white/90 dark:text-slate-400 dark:hover:text-white"
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
           </div>
         </div>
       )}
+    </div>
+  )
+
+  if (isMobile) {
+    return (
+      <>
+        {/* Mobile Menu Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onToggle}
+          className="fixed top-4 left-4 z-50 md:hidden bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+
+        {/* Mobile Sidebar Sheet */}
+        <Sheet open={isOpen} onOpenChange={onToggle}>
+          <SheetContent side="left" className="p-0 w-64">
+            <SidebarContent />
+          </SheetContent>
+        </Sheet>
+      </>
+    )
+  }
+
+  return (
+    <div
+      className={`fixed left-0 top-0 h-full transition-all duration-300 z-40 ${
+        isOpen ? "w-64" : "w-16"
+      }`}
+    >
+      <SidebarContent />
     </div>
   )
 }

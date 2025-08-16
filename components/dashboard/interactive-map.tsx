@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
-import type { EthiopianGridAsset } from "@/lib/ethiopia-data"
+import type { ProcessedAsset } from "@/lib/processed-data"
 
 // Fix for default markers in Leaflet with Next.js
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -14,10 +14,10 @@ L.Icon.Default.mergeOptions({
 })
 
 interface InteractiveMapProps {
-  assets: EthiopianGridAsset[]
+  assets: ProcessedAsset[]
   mapView: "satellite" | "street" | "terrain"
-  onAssetSelect: (asset: EthiopianGridAsset | null) => void
-  selectedAsset: EthiopianGridAsset | null
+  onAssetSelect: (asset: ProcessedAsset | null) => void
+  selectedAsset: ProcessedAsset | null
   getStatusColor: (status: string) => string
   getAssetIcon: (type: string) => string
 }
@@ -35,11 +35,9 @@ export default function InteractiveMap({
 
   useEffect(() => {
     if (!mapRef.current) {
-      // Initialize map centered on Ethiopia
       const map = L.map("map").setView([9.145, 40.489673], 6)
       mapRef.current = map
 
-      // Add tile layers
       const tileLayers = {
         street: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -57,13 +55,9 @@ export default function InteractiveMap({
         }),
       }
 
-      // Add default layer
       tileLayers.street.addTo(map)
-
-      // Store tile layers for switching
       ;(map as any).tileLayers = tileLayers
 
-      // Initialize markers layer
       markersRef.current = L.layerGroup().addTo(map)
     }
 
@@ -75,34 +69,29 @@ export default function InteractiveMap({
     }
   }, [])
 
-  // Update map view when mapView changes
   useEffect(() => {
     if (mapRef.current && (mapRef.current as any).tileLayers) {
       const tileLayers = (mapRef.current as any).tileLayers
-
-      // Remove all layers
       Object.values(tileLayers).forEach((layer: any) => {
         mapRef.current!.removeLayer(layer)
       })
-
-      // Add selected layer
       tileLayers[mapView].addTo(mapRef.current)
     }
   }, [mapView])
 
-  // Update markers when assets change
   useEffect(() => {
     if (!mapRef.current || !markersRef.current) return
-
-    // Clear existing markers
     markersRef.current.clearLayers()
 
-    // Add new markers
     assets.forEach((asset) => {
-      const color = getStatusColor(asset.status)
-      const icon = getAssetIcon(asset.type)
+      if (!asset.lat || !asset.lng || asset.lat == null || asset.lng == null) {
+        console.warn("Skipping asset with missing location:", asset)
+        return
+      }
 
-      // Create custom icon
+      const color = getStatusColor(asset.status || 'unknown')
+      const icon = getAssetIcon(asset.source || 'unknown')
+
       const customIcon = L.divIcon({
         html: `
           <div style="
@@ -126,37 +115,46 @@ export default function InteractiveMap({
         iconAnchor: [10, 10],
       })
 
-      const marker = L.marker([asset.location.lat, asset.location.lng], { icon: customIcon })
+      const marker = L.marker([asset.lat, asset.lng], { icon: customIcon })
 
-      // Create popup content
       const popupContent = `
-        <div style="color: #1e293b; min-width: 200px;">
-          <h3 style="margin: 0 0 8px 0; font-weight: bold; color: #0f172a;">${asset.name}</h3>
-          <div style="margin-bottom: 8px;">
-            <span style="display: inline-block; padding: 2px 6px; background-color: ${color}; color: white; border-radius: 4px; font-size: 11px; margin-right: 4px;">
-              ${asset.status.toUpperCase()}
+        <div style="color: #1e293b; min-width: 250px; font-family: system-ui, -apple-system, sans-serif;">
+          <h3 style="margin: 0 0 12px 0; font-weight: bold; color: #0f172a; font-size: 16px;">
+            ${asset.name || `${asset.source} ${asset.id}`}
+          </h3>
+
+          <div style="margin-bottom: 12px;">
+            <span style="display: inline-block; padding: 3px 8px; background-color: ${color}; color: white; border-radius: 4px; font-size: 11px; margin-right: 6px; font-weight: 500;">
+              ${(asset.status || 'UNKNOWN').toUpperCase()}
             </span>
-            <span style="display: inline-block; padding: 2px 6px; background-color: #64748b; color: white; border-radius: 4px; font-size: 11px;">
-              ${asset.type.toUpperCase()}
+            <span style="display: inline-block; padding: 3px 8px; background-color: #64748b; color: white; border-radius: 4px; font-size: 11px; font-weight: 500;">
+              ${(asset.source || 'ASSET').toUpperCase()}
             </span>
           </div>
-          <div style="font-size: 12px; line-height: 1.4;">
-            <div><strong>Region:</strong> ${asset.region}</div>
-            <div><strong>Load:</strong> ${asset.load.toFixed(1)}%</div>
-            <div><strong>Voltage:</strong> ${asset.voltage.toLocaleString()} V</div>
-            ${asset.alerts.length > 0 ? `<div style="color: #dc2626; margin-top: 4px;"><strong>⚠️ ${asset.alerts.length} Alert(s)</strong></div>` : ""}
+
+          <div style="font-size: 13px; line-height: 1.6; color: #374151;">
+            ${asset.source === 'tower' ? `
+              ${asset.site ? `<div><strong>Site:</strong> ${asset.site}</div>` : ''}
+              ${asset.zone ? `<div><strong>Zone:</strong> ${asset.zone}</div>` : ''}
+              ${asset.woreda ? `<div><strong>Woreda:</strong> ${asset.woreda}</div>` : ''}
+              ${asset.category ? `<div><strong>Category:</strong> ${asset.category}</div>` : ''}
+              ${asset.name_link ? `<div><strong>Link:</strong> ${asset.name_link}</div>` : ''}
+            ` : `
+              ${asset.voltage_le ? `<div><strong>Voltage Level:</strong> ${asset.voltage_le} kV</div>` : ''}
+              ${asset.voltage_sp ? `<div><strong>Voltage Spec:</strong> ${asset.voltage_sp}</div>` : ''}
+            `}
+            ${asset.poletical ? `<div><strong>Region:</strong> ${asset.poletical}</div>` : ''}
+
+            <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280;">
+              <div><strong>Coordinates:</strong></div>
+              <div>Lat: ${asset.lat.toFixed(6)}, Lng: ${asset.lng.toFixed(6)}</div>
+            </div>
           </div>
         </div>
       `
 
       marker.bindPopup(popupContent)
-
-      // Add click event
-      marker.on("click", () => {
-        onAssetSelect(asset)
-      })
-
-      // Add to markers layer
+      marker.on("click", () => onAssetSelect(asset))
       markersRef.current!.addLayer(marker)
     })
   }, [assets, selectedAsset, getStatusColor, getAssetIcon, onAssetSelect])
