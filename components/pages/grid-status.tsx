@@ -63,7 +63,6 @@ export function GridStatus({ assets }: GridStatusProps) {
         case "good":
           return CheckCircle
         case "warning":
-          return AlertTriangle
         case "critical":
           return AlertTriangle
         case "maintenance":
@@ -82,12 +81,12 @@ export function GridStatus({ assets }: GridStatusProps) {
       s === "normal" || s === "good"
         ? "text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-500/20"
         : s === "warning"
-          ? "text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-500/20"
-          : s === "critical"
-            ? "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-500/20"
-            : s === "maintenance"
-              ? "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20"
-              : "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20"
+        ? "text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-500/20"
+        : s === "critical"
+        ? "text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-500/20"
+        : s === "maintenance"
+        ? "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20"
+        : "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20"
     return <Badge className={color}>{asset.status}</Badge>
   }
 
@@ -161,12 +160,16 @@ export function GridStatus({ assets }: GridStatusProps) {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg text-slate-900 dark:text-white truncate">
-                    {asset.name || (
-                      asset.source === "tower" ? "Tower" : 
-                      asset.source === "substation" ? "Substation" :
-                      asset.source === "generation_plant" ? "Generation Plant" :
-                      asset.source === "transmission_line" ? "Transmission Line" : "Asset"
-                    )}
+                    {asset.name ||
+                      (asset.source === "tower"
+                        ? "Tower"
+                        : asset.source === "substation"
+                        ? "Substation"
+                        : asset.source === "generation_plant"
+                        ? "Generation Plant"
+                        : asset.source === "transmission_line"
+                        ? "Transmission Line"
+                        : "Asset")}
                   </CardTitle>
                   {getStatusBadge(asset)}
                 </div>
@@ -195,7 +198,7 @@ export function GridStatus({ assets }: GridStatusProps) {
                   ) : asset.source === "substation" ? (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-blue-600 dark:text-slate-400">Region:</span>
+                        <span className="text-blue-600 dark:text-slate-400">Poletical:</span>
                         <span className="text-slate-900 dark:text-white">{asset.poletical || "-"}</span>
                       </div>
                       <div className="flex justify-between">
@@ -237,14 +240,7 @@ export function GridStatus({ assets }: GridStatusProps) {
                         <span className="text-slate-900 dark:text-white">{asset.poletical || "-"}</span>
                       </div>
                     </>
-                  ) : (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-blue-600 dark:text-slate-400">Region:</span>
-                        <span className="text-slate-900 dark:text-white">{asset.poletical || "-"}</span>
-                      </div>
-                    </>
-                  )}
+                  ) : null}
                   <div className="flex justify-between">
                     <span className="text-blue-600 dark:text-slate-400">Lat/Lng:</span>
                     <span className="text-slate-900 dark:text-white">{asset.lat.toFixed(3)}, {asset.lng.toFixed(3)}</span>

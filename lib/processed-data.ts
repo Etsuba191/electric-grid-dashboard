@@ -2,6 +2,7 @@
 import { EthiopianGridAsset } from "@/lib/ethiopia-data"
 
 export interface ProcessedAsset {
+<<<<<<< HEAD
   properties: any
   id: string
   name?: string
@@ -9,6 +10,13 @@ export interface ProcessedAsset {
   lat: number
   lng: number
   region?: any
+=======
+  id: string
+  name?: string
+  source: "tower" | "substation"
+  lat: number
+  lng: number
+>>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
 
   // Tower-specific fields
   site?: string
@@ -22,6 +30,7 @@ export interface ProcessedAsset {
   // Substation-specific fields
   voltage_le?: number
   voltage_sp?: string
+<<<<<<< HEAD
 
   // Generation plant specific fields
   plant_type?: string
@@ -31,6 +40,8 @@ export interface ProcessedAsset {
   // Transmission line specific fields
   line_voltage?: number
   line_length_km?: number
+=======
+>>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
 }
 
 // Load and process the GeoJSON data
@@ -62,8 +73,11 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
             status: feature.properties?.Status || "UNKNOWN",
             name_link: feature.properties?.Link_Name,
             poletical: feature.properties?.Town || feature.properties?.Region,
+<<<<<<< HEAD
             region: feature.properties?.Region,
             properties: feature.properties,
+=======
+>>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
           })
         }
       })
@@ -83,13 +97,17 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
             poletical: feature.properties?.Poletical_ || feature.properties?.New_EEP_Re,
             voltage_le: feature.properties?.VOLTAGE_LE,
             voltage_sp: feature.properties?.Voltage_Sp,
+<<<<<<< HEAD
             region: feature.properties?.Poletical_,
             properties: feature.properties,
+=======
+>>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
           })
         }
       })
     }
 
+<<<<<<< HEAD
     // Derive generation plants from substations with SwitchYared type
     let generationPlantsCount = 0
     if (substationsData.features) {
@@ -250,6 +268,9 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
     console.log(`Final generation plants count: ${finalGenerationPlants.length}`)
     console.log('Generation plant names:', finalGenerationPlants.map(p => p.name))
     
+=======
+    console.log(`Loaded ${processedAssets.length} processed assets`)
+>>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
     return processedAssets
 
   } catch (error) {
@@ -267,8 +288,11 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
         woreda: "Addis Ketema",
         category: "Transmission",
         status: "GOOD",
+<<<<<<< HEAD
         poletical: "Addis Abeba",
         region: "Addis Abeba",
+=======
+>>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
       },
       {
         id: "substation_1",
@@ -276,15 +300,22 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
         lat: 9.045,
         lng: 38.7569,
         name: "Addis Ababa Substation 1",
+<<<<<<< HEAD
         poletical: "Addis Abeba",
         voltage_le: 132,
         voltage_sp: "132kV",
         region: "Addis Abeba",
+=======
+        poletical: "Addis Ababa",
+        voltage_le: 132,
+        voltage_sp: "132kV",
+>>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
       },
     ]
   }
 }
 
+<<<<<<< HEAD
 // Helper function to calculate distance between two points
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371 // Earth's radius in kilometers
@@ -309,10 +340,13 @@ export function getUniqueRegions(assets: ProcessedAsset[]): string[] {
   return Array.from(regions).sort()
 }
 
+=======
+>>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
 // Compute metrics from processed assets
 export function computeMetrics(assets: ProcessedAsset[]) {
   const towers = assets.filter(a => a.source === "tower")
   const substations = assets.filter(a => a.source === "substation")
+<<<<<<< HEAD
   const generationPlants = assets.filter(a => a.source === "generation_plant")
   const transmissionLines = assets.filter(a => a.source === "transmission_line")
   
@@ -322,6 +356,8 @@ export function computeMetrics(assets: ProcessedAsset[]) {
     generationPlants: generationPlants.length,
     transmissionLines: transmissionLines.length
   })
+=======
+>>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
 
   const activeSubstations = substations.filter(s =>
     (s.voltage_le && s.voltage_le > 0) || s.voltage_sp
@@ -337,10 +373,13 @@ export function computeMetrics(assets: ProcessedAsset[]) {
   const powerGeneratedMW = activeSubstations * 50 + Math.random() * 1000
 
   return {
+<<<<<<< HEAD
     totalTowers: towers.length,
     totalSubstations: substations.length,
     totalGenerationPlants: generationPlants.length,
     totalTransmissionLines: transmissionLines.length,
+=======
+>>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
     totalAssets: assets.length,
     activeSubstations,
     faultAlerts,
@@ -387,12 +426,16 @@ export function exportToCSV(data: ProcessedAsset[], filename: string = 'grid_ass
     'Political Region',
     'Voltage Level',
     'Voltage Specification',
+<<<<<<< HEAD
     'Link Name',
     'Plant Type',
     'Capacity MW',
     'Year Operational',
     'Line Voltage',
     'Line Length KM'
+=======
+    'Link Name'
+>>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
   ]
 
   // Convert data to CSV rows
@@ -412,12 +455,16 @@ export function exportToCSV(data: ProcessedAsset[], filename: string = 'grid_ass
       `"${asset.poletical || ''}"`,
       asset.voltage_le || '',
       `"${asset.voltage_sp || ''}"`,
+<<<<<<< HEAD
       `"${asset.name_link || ''}"`,
       `"${asset.plant_type || ''}"`,
       asset.capacity_mw || '',
       `"${asset.year_operational || ''}"`,
       asset.line_voltage || '',
       asset.line_length_km || ''
+=======
+      `"${asset.name_link || ''}"`
+>>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
     ].join(','))
   ]
 

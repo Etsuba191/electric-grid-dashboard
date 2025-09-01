@@ -37,10 +37,7 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
-    
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -100,8 +97,6 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
             </div>
           )}
         </div>
-
-  {/* Role switch removed for security. Role is now display-only. */}
       </div>
 
       {/* Navigation Menu */}
@@ -118,9 +113,7 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
                 } ${!(isOpen || isMobile) ? "px-2" : ""}`}
                 onClick={() => {
                   onPageChange(item.id)
-                  if (isMobile) {
-                    onToggle() // Close mobile sidebar after selection
-                  }
+                  if (isMobile) onToggle()
                 }}
               >
                 <item.icon className={`h-5 w-5 ${(isOpen || isMobile) ? "mr-3" : ""}`} />
@@ -131,7 +124,7 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
         </ul>
       </nav>
 
-      {/* Theme Toggle and Logout Button - Always visible in admin mode or when sidebar is open */}
+      {/* Theme Toggle and Logout */}
       {(isOpen || isMobile) && (
         <div className="p-4 border-t border-blue-700 dark:border-slate-800 mt-auto space-y-4">
           <div className="flex items-center justify-between text-sm text-white dark:text-slate-400">
@@ -146,7 +139,6 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
             </Button>
           </div>
           <div>
-            {/* Logout Button */}
             <form action="/api/auth/signout" method="post">
               <button
                 type="submit"
@@ -164,7 +156,6 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
   if (isMobile) {
     return (
       <>
-        {/* Mobile Menu Button */}
         <Button
           variant="ghost"
           size="sm"
@@ -173,14 +164,9 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
         >
           <Menu className="h-5 w-5" />
         </Button>
-
-        {/* Mobile Sidebar Sheet */}
         <Sheet open={isOpen} onOpenChange={onToggle}>
           <SheetContent side="left" className="p-0 w-64">
-            {/* Add a SheetTitle for accessibility, even if visually hidden */}
-            <span className="sr-only">
-              <strong>Sidebar Menu</strong>
-            </span>
+            <span className="sr-only"><strong>Sidebar Menu</strong></span>
             <SidebarContent />
           </SheetContent>
         </Sheet>
@@ -189,11 +175,7 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
   }
 
   return (
-    <div
-      className={`fixed left-0 top-0 h-full transition-all duration-300 z-40 ${
-        isOpen ? "w-64" : "w-16"
-      }`}
-    >
+    <div className={`fixed left-0 top-0 h-full transition-all duration-300 z-40 ${isOpen ? "w-64" : "w-16"}`}>
       <SidebarContent />
     </div>
   )
