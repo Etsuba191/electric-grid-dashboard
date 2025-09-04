@@ -1,16 +1,20 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import L from "leaflet"
+import "./interactive-map.css"
 import "leaflet/dist/leaflet.css"
 import type { ProcessedAsset } from "@/lib/processed-data"
 
-// Fix for default markers in Leaflet with Next.js
+// Fix default Leaflet markers for Next.js
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+  iconRetinaUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 })
 
 interface InteractiveMapProps {
@@ -31,133 +35,285 @@ export default function InteractiveMap({
   getAssetIcon,
 }: InteractiveMapProps) {
   const mapRef = useRef<L.Map | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const markersRef = useRef<L.LayerGroup | null>(null)
+  const rafRef = useRef<number | null>(null)
+  const [refreshTick, setRefreshTick] = useState(0)
+  const hasFitRef = useRef(false)
 
+  // --- initialize map ---
   useEffect(() => {
-    if (!mapRef.current) {
-      const map = L.map("map").setView([9.145, 40.489673], 6)
+    const mapContainer = containerRef.current
+    if (!mapRef.current && mapContainer) {
+      const map = L.map(mapContainer, {
+        preferCanvas: true,
+        center: [9.145, 40.489673], // Ethiopia default center
+        zoom: 6,
+      })
       mapRef.current = map
+
+      // This is a workaround for a race condition in Leaflet where a zoom animation
+      // can complete after the map has been removed from the DOM, causing an error.
+      // See: https://github.com/Leaflet/Leaflet/issues/6966
+      const original_onZoomTransitionEnd = map._onZoomTransitionEnd
+      map._onZoomTransitionEnd = function (...args) {
+        // If the map pane is gone, the map has been removed.
+        // Stop processing to prevent errors.
+        if (!this._mapPane) {
+          return
+        }
+        return original_onZoomTransitionEnd.apply(this, args)
+      }
 
       const tileLayers = {
         street: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          attribution: '&copy; OpenStreetMap contributors',
         }),
         satellite: L.tileLayer(
           "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-          {
-            attribution:
-              "Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
-          },
+          { attribution: "Tiles &copy; Esri &mdash; Sources: Esri, USGS, NOAA" }
         ),
         terrain: L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
-          attribution:
-            'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+          attribution: "&copy; OpenStreetMap contributors",
         }),
       }
 
       tileLayers.street.addTo(map)
       ;(map as any).tileLayers = tileLayers
+      Object.values(tileLayers).forEach(layer =>
+        layer.on("load", () => map.invalidateSize())
+      )
 
-      markersRef.current = L.layerGroup().addTo(map)
+      markersRef.current = L.layerGroup([], { renderer: L.svg() }).addTo(map)
+
+      let debounceTimer: ReturnType<typeof setTimeout> | null = null
+      const refresh = () => {
+        if (debounceTimer) clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(() => setRefreshTick(t => t + 1), 120)
+      }
+      map.on("moveend", refresh)
+      map.on("zoomend", refresh)
+
+      const onResize = () => map.invalidateSize()
+      window.addEventListener("resize", onResize)
+
+      let ro: ResizeObserver | null = null
+      if ("ResizeObserver" in window) {
+        ro = new ResizeObserver(() => map.invalidateSize())
+        ro.observe(mapContainer)
+      }
+
+      refresh()
+
+      ;(map as any)._cleanupHandlers = () => {
+        map.off("moveend", refresh)
+        map.off("zoomend", refresh)
+        window.removeEventListener("resize", onResize)
+        if (ro) ro.disconnect()
+        if (debounceTimer) clearTimeout(debounceTimer)
+      }
     }
 
     return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
       if (mapRef.current) {
+        ;(mapRef.current as any)._cleanupHandlers?.()
         mapRef.current.remove()
         mapRef.current = null
+        markersRef.current = null
+        hasFitRef.current = false
       }
     }
   }, [])
 
+  // --- switch basemap ---
   useEffect(() => {
-    if (mapRef.current && (mapRef.current as any).tileLayers) {
-      const tileLayers = (mapRef.current as any).tileLayers
-      Object.values(tileLayers).forEach((layer: any) => {
-        mapRef.current!.removeLayer(layer)
-      })
-      tileLayers[mapView].addTo(mapRef.current)
-    }
+    const map = mapRef.current
+    if (!map) return
+    const tileLayers = (map as any).tileLayers
+    if (!tileLayers) return
+    Object.values(tileLayers).forEach((layer: L.TileLayer) => {
+      if (map.hasLayer(layer)) map.removeLayer(layer)
+    })
+    tileLayers[mapView].addTo(map)
+    const timer = setTimeout(() => {
+      if (mapRef.current) {
+        map.invalidateSize()
+      }
+    }, 50)
+
+    return () => clearTimeout(timer)
   }, [mapView])
 
+  // --- render markers ---
   useEffect(() => {
-    if (!mapRef.current || !markersRef.current) return
-    markersRef.current.clearLayers()
+    const map = mapRef.current
+    const layers = markersRef.current
+    if (!map || !layers) return
 
-    assets.forEach((asset) => {
-      if (!asset.lat || !asset.lng || asset.lat == null || asset.lng == null) {
-        console.warn("Skipping asset with missing location:", asset)
-        return
-      }
+    layers.clearLayers()
+    const bounds = map.getBounds()
+    if (!bounds.isValid()) return
 
-      const color = getStatusColor(asset.status || 'unknown')
-      const icon = getAssetIcon(asset.source || 'unknown')
+    const visible = assets.filter(
+      a =>
+        Number.isFinite(a.lat) &&
+        Number.isFinite(a.lng) &&
+        bounds.contains([a.lat, a.lng])
+    )
 
-      const customIcon = L.divIcon({
-        html: `
-          <div style="
-            background-color: ${color};
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            border: 2px solid white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            ${selectedAsset?.id === asset.id ? "transform: scale(1.5); z-index: 1000;" : ""}
-          ">
-            ${icon}
+    const MAX_VISIBLE = 3000
+    let filtered = visible
+    const zoom = map.getZoom()
+    if (visible.length > MAX_VISIBLE || zoom < 7) {
+      const step = Math.ceil(visible.length / MAX_VISIBLE)
+      filtered = visible.filter((_, idx) => idx % step === 0)
+    }
+
+    let i = 0
+    const CHUNK = 400
+    const addBatch = () => {
+      const map = mapRef.current
+      const layers = markersRef.current
+      if (!map || !layers) return
+
+      const end = Math.min(i + CHUNK, filtered.length)
+      const zoomNow = map.getZoom()
+
+      for (; i < end; i++) {
+        const asset = filtered[i]
+        if (!Number.isFinite(asset.lat) || !Number.isFinite(asset.lng)) continue
+
+        const isTower = asset.source === "tower"
+        const isSub = asset.source === "substation"
+        const isPlant = asset.source === "generation_plant"
+        const isLine = asset.source === "transmission_line"
+        const emoji = getAssetIcon?.(asset.source || "unknown") ?? "📍"
+
+        const color = "#111827"
+
+        const sizeBase = zoomNow >= 12 ? 28 : zoomNow >= 10 ? 24 : 20
+        const size = selectedAsset?.id === asset.id ? sizeBase + 6 : sizeBase
+
+        let marker: L.Marker<any> | L.CircleMarker
+        try {
+          if (filtered.length > 2800 && zoom < 6) {
+            marker = L.circleMarker([asset.lat, asset.lng], {
+              radius: Math.max(3, size / 3),
+              color: "#ffffff",
+              weight: 1,
+              fillColor: color,
+              fillOpacity: 0.9,
+              renderer: L.svg(),
+            })
+          } else {
+            const icon = L.divIcon({
+              html: `<span>${emoji}</span>`,
+              className: "custom-marker",
+              iconSize: [size, size],
+              iconAnchor: [size / 2, size / 2],
+            })
+            marker = L.marker([asset.lat, asset.lng], { icon }).on("add", e => {
+              const el = (e.target as any)?._icon
+              if (el) {
+                el.style.setProperty("--marker-color", color)
+                el.style.setProperty("--marker-size", `${size}px`)
+              }
+            })
+          }
+        } catch (err) {
+          console.warn("Skipping marker due to render error:", asset, err)
+          continue
+        }
+
+        const popupContent = `<div class="map-popup">
+          <h3 class="map-popup-title">${
+            asset.name || `${asset.source} ${asset.id}`
+          }</h3>
+          <div class="map-popup-tags">
+            ${
+              isTower
+                ? `<span class="map-popup-tag">${(
+                    asset.status || "UNKNOWN"
+                  ).toUpperCase()}</span>`
+                : ""
+            }
+            <span class="map-popup-tag map-popup-tag-type">${(
+              asset.source || "ASSET"
+            ).toUpperCase()}</span>
           </div>
-        `,
-        className: "custom-marker",
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
-      })
-
-      const marker = L.marker([asset.lat, asset.lng], { icon: customIcon })
-
-      const popupContent = `
-        <div style="color: #1e293b; min-width: 250px; font-family: system-ui, -apple-system, sans-serif;">
-          <h3 style="margin: 0 0 12px 0; font-weight: bold; color: #0f172a; font-size: 16px;">
-            ${asset.name || `${asset.source} ${asset.id}`}
-          </h3>
-
-          <div style="margin-bottom: 12px;">
-            <span style="display: inline-block; padding: 3px 8px; background-color: ${color}; color: white; border-radius: 4px; font-size: 11px; margin-right: 6px; font-weight: 500;">
-              ${(asset.status || 'UNKNOWN').toUpperCase()}
-            </span>
-            <span style="display: inline-block; padding: 3px 8px; background-color: #64748b; color: white; border-radius: 4px; font-size: 11px; font-weight: 500;">
-              ${(asset.source || 'ASSET').toUpperCase()}
-            </span>
-          </div>
-
-          <div style="font-size: 13px; line-height: 1.6; color: #374151;">
-            ${asset.source === 'tower' ? `
-              ${asset.site ? `<div><strong>Site:</strong> ${asset.site}</div>` : ''}
-              ${asset.zone ? `<div><strong>Zone:</strong> ${asset.zone}</div>` : ''}
-              ${asset.woreda ? `<div><strong>Woreda:</strong> ${asset.woreda}</div>` : ''}
-              ${asset.category ? `<div><strong>Category:</strong> ${asset.category}</div>` : ''}
-              ${asset.name_link ? `<div><strong>Link:</strong> ${asset.name_link}</div>` : ''}
-            ` : `
-              ${asset.voltage_le ? `<div><strong>Voltage Level:</strong> ${asset.voltage_le} kV</div>` : ''}
-              ${asset.voltage_sp ? `<div><strong>Voltage Spec:</strong> ${asset.voltage_sp}</div>` : ''}
-            `}
-            ${asset.poletical ? `<div><strong>Region:</strong> ${asset.poletical}</div>` : ''}
-
-            <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280;">
+          <div class="map-popup-details">
+            ${
+              isTower
+                ? `${
+                    asset.site
+                      ? `<div><strong>Site:</strong>${asset.site}</div>`
+                      : ""
+                  }${
+                    asset.zone
+                      ? `<div><strong>Zone:</strong>${asset.zone}</div>`
+                      : ""
+                  }`
+                : ""
+            }
+            ${
+              asset.poletical
+                ? `<div><strong>Region:</strong>${asset.poletical}</div>`
+                : ""
+            }
+            <div class="map-popup-coords">
               <div><strong>Coordinates:</strong></div>
-              <div>Lat: ${asset.lat.toFixed(6)}, Lng: ${asset.lng.toFixed(6)}</div>
+              <div>Lat:${asset.lat.toFixed(6)}, Lng:${asset.lng.toFixed(6)}</div>
             </div>
           </div>
-        </div>
-      `
+        </div>`
 
-      marker.bindPopup(popupContent)
-      marker.on("click", () => onAssetSelect(asset))
-      markersRef.current!.addLayer(marker)
-    })
-  }, [assets, selectedAsset, getStatusColor, getAssetIcon, onAssetSelect])
+        marker.bindPopup(popupContent)
+        marker.on("click", () => onAssetSelect(asset))
+        layers.addLayer(marker)
+      }
 
-  return <div id="map" style={{ height: "100%", width: "100%" }} />
+      if (i < filtered.length) rafRef.current = requestAnimationFrame(addBatch)
+    }
+
+    addBatch()
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
+  }, [assets, selectedAsset, refreshTick, getAssetIcon, getStatusColor])
+
+  // --- fit map to assets (deferred & safe) ---
+  useEffect(() => {
+    if (!assets || assets.length === 0) return
+
+    const pts = assets
+      .filter(a => Number.isFinite(a.lat) && Number.isFinite(a.lng))
+      .map(a => [a.lat, a.lng] as [number, number])
+
+    if (pts.length === 0) return
+
+    const bounds = L.latLngBounds(pts)
+    if (!bounds.isValid() || hasFitRef.current) return
+
+    const timer = setTimeout(() => {
+      const m = mapRef.current
+      if (!m || !containerRef.current?.isConnected) return // ensure map & DOM exist
+
+      try {
+        m.fitBounds(bounds.pad(0.1))
+        setTimeout(() => {
+          if (mapRef.current && containerRef.current?.isConnected) {
+            mapRef.current.invalidateSize()
+          }
+        }, 100)
+        hasFitRef.current = true
+      } catch (err) {
+        console.warn("Skipping fitBounds due to map state issue:", err)
+      }
+    }, 200)
+
+    return () => clearTimeout(timer)
+  }, [assets])
+
+  return <div ref={containerRef} style={{ height: "100%", width: "100%" }} />
 }

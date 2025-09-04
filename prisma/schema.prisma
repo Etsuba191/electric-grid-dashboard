@@ -10,6 +10,11 @@ model GridAsset {
   load      Float
   capacity  Int
   lastUpdate DateTime @default(now())
+  site      String? // New field
+  zone      String? // New field
+  woreda    String? // New field
+  category  String? // New field
+  nameLink  String? // New field
 }
 model User {
   id           String   @id @default(uuid())

@@ -11,7 +11,6 @@ interface AboutPageProps {
 
 export function AboutPage({ assets = [] }: AboutPageProps) {
   // Calculate real statistics from the assets
-  const totalAssets = assets.length
   const towers = assets.filter(asset => asset.source === 'tower').length
   const substations = assets.filter(asset => asset.source === 'substation').length
   const uniqueRegions = new Set(assets.map(asset => asset.poletical).filter(Boolean)).size
@@ -48,8 +47,8 @@ export function AboutPage({ assets = [] }: AboutPageProps) {
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-400">{totalAssets.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Total Assets</div>
+              <div className="text-2xl font-bold text-blue-400">{towers.toLocaleString()}</div>
+              <div className="text-sm text-muted-foreground">Towers</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-400">{uniqueRegions}</div>

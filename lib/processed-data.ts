@@ -2,7 +2,6 @@
 import { EthiopianGridAsset } from "@/lib/ethiopia-data"
 
 export interface ProcessedAsset {
-<<<<<<< HEAD
   properties: any
   id: string
   name?: string
@@ -10,13 +9,6 @@ export interface ProcessedAsset {
   lat: number
   lng: number
   region?: any
-=======
-  id: string
-  name?: string
-  source: "tower" | "substation"
-  lat: number
-  lng: number
->>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
 
   // Tower-specific fields
   site?: string
@@ -30,7 +22,6 @@ export interface ProcessedAsset {
   // Substation-specific fields
   voltage_le?: number
   voltage_sp?: string
-<<<<<<< HEAD
 
   // Generation plant specific fields
   plant_type?: string
@@ -40,13 +31,29 @@ export interface ProcessedAsset {
   // Transmission line specific fields
   line_voltage?: number
   line_length_km?: number
-=======
->>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
 }
 
 // Load and process the GeoJSON data
 export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
   try {
+    // Ensure unique, stable IDs for all assets to avoid duplicate React keys
+    const usedIds = new Set<string>()
+    const slugify = (v: any) => String(v ?? '').trim().replace(/[^a-zA-Z0-9_-]+/g, '_')
+    const makeBaseId = (type: string, ...parts: any[]) => {
+      const core = [type, ...parts.filter(p => p !== undefined && p !== null && p !== '')].map(slugify).join('_')
+      return core || `${type}`
+    }
+    const ensureUniqueId = (base: string) => {
+      let id = base
+      let i = 1
+      while (usedIds.has(id)) {
+        i += 1
+        id = `${base}__${i}`
+      }
+      usedIds.add(id)
+      return id
+    }
+
     const towersResponse = await fetch('/ElectricTowers.geojson')
     const towersData = await towersResponse.json()
 
@@ -61,7 +68,7 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
         const coords = feature.geometry?.coordinates
         if (coords && coords.length >= 2) {
           processedAssets.push({
-            id: feature.properties?.Barcode || `tower_${index}`,
+            id: ensureUniqueId(makeBaseId('tower', feature.properties?.Barcode ?? index)),
             source: "tower",
             lat: coords[1],
             lng: coords[0],
@@ -73,11 +80,8 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
             status: feature.properties?.Status || "UNKNOWN",
             name_link: feature.properties?.Link_Name,
             poletical: feature.properties?.Town || feature.properties?.Region,
-<<<<<<< HEAD
             region: feature.properties?.Region,
             properties: feature.properties,
-=======
->>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
           })
         }
       })
@@ -89,7 +93,7 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
         const coords = feature.geometry?.coordinates
         if (coords && coords.length >= 2) {
           processedAssets.push({
-            id: `substation_${feature.properties?.NO_First || index}`,
+            id: ensureUniqueId(makeBaseId('substation', feature.properties?.NO_First ?? feature.properties?.Name_First ?? index)),
             source: "substation",
             lat: coords[1],
             lng: coords[0],
@@ -97,17 +101,13 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
             poletical: feature.properties?.Poletical_ || feature.properties?.New_EEP_Re,
             voltage_le: feature.properties?.VOLTAGE_LE,
             voltage_sp: feature.properties?.Voltage_Sp,
-<<<<<<< HEAD
             region: feature.properties?.Poletical_,
             properties: feature.properties,
-=======
->>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
           })
         }
       })
     }
 
-<<<<<<< HEAD
     // Derive generation plants from substations with SwitchYared type
     let generationPlantsCount = 0
     if (substationsData.features) {
@@ -156,7 +156,7 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
           }
 
           const plantAsset: ProcessedAsset = {
-            id: `plant_${feature.properties?.NO_First || index}`,
+            id: ensureUniqueId(makeBaseId('plant', feature.properties?.NO_First ?? feature.properties?.Name_First ?? index)),
             source: "generation_plant" as const,
             lat: coords[1],
             lng: coords[0],
@@ -199,7 +199,7 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
           const voltage = Math.max(sub1.voltage_le || 0, sub2.voltage_le || 0)
           
           transmissionLines.push({
-            id: `line_${sub1.id}_${sub2.id}`,
+            id: ensureUniqueId(makeBaseId('line', sub1.id, sub2.id)),
             source: "transmission_line",
             lat: midLat,
             lng: midLng,
@@ -234,7 +234,7 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
           const voltage = Math.max(plant.properties?.VOLTAGE_LE || 0, substation.voltage_le || 0)
           
           transmissionLines.push({
-            id: `line_${plant.id}_${substation.id}`,
+            id: ensureUniqueId(makeBaseId('line', plant.id, substation.id)),
             source: "transmission_line",
             lat: midLat,
             lng: midLng,
@@ -268,9 +268,6 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
     console.log(`Final generation plants count: ${finalGenerationPlants.length}`)
     console.log('Generation plant names:', finalGenerationPlants.map(p => p.name))
     
-=======
-    console.log(`Loaded ${processedAssets.length} processed assets`)
->>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
     return processedAssets
 
   } catch (error) {
@@ -288,11 +285,8 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
         woreda: "Addis Ketema",
         category: "Transmission",
         status: "GOOD",
-<<<<<<< HEAD
         poletical: "Addis Abeba",
         region: "Addis Abeba",
-=======
->>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
       },
       {
         id: "substation_1",
@@ -300,22 +294,15 @@ export async function loadProcessedAssets(): Promise<ProcessedAsset[]> {
         lat: 9.045,
         lng: 38.7569,
         name: "Addis Ababa Substation 1",
-<<<<<<< HEAD
         poletical: "Addis Abeba",
         voltage_le: 132,
         voltage_sp: "132kV",
         region: "Addis Abeba",
-=======
-        poletical: "Addis Ababa",
-        voltage_le: 132,
-        voltage_sp: "132kV",
->>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
       },
     ]
   }
 }
 
-<<<<<<< HEAD
 // Helper function to calculate distance between two points
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371 // Earth's radius in kilometers
@@ -329,24 +316,74 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * c
 }
 
+// Normalize inconsistent region names to canonical display form (e.g., Amhara, Oromiya, Addis Ababa)
+export function normalizeRegionName(name: any): string {
+  const raw = String(name || "").trim()
+  if (!raw) return ""
+  const n = raw.toLowerCase()
+  const map: Record<string, string> = {
+    // Oromo region
+    "oromia": "Oromiya",
+    "oromiya": "Oromiya",
+    // Amhara
+    "amhara": "Amhara",
+    // Tigray
+    "tigray": "Tigray",
+    // SNNP variations
+    "snnpr": "SNNP",
+    "snnprs": "SNNP",
+    "southern nations, nationalities and peoples": "SNNP",
+    "southern": "SNNP",
+    // Addis Ababa variations
+    "addis abeba": "Addis Ababa",
+    "addis ababa": "Addis Ababa",
+    // Dire Dawa
+    "dire dawa": "Dire Dawa",
+    // Somali
+    "somali": "Somali",
+    // Afar
+    "afar": "Afar",
+    // Benishangul-Gumuz variations
+    "benishangul": "Benishangul",
+    "benishangul-gumuz": "Benishangul",
+    // Gambela variations
+    "gambela": "Gambela",
+    "gambella": "Gambela",
+    // Harari
+    "harari": "Harar",
+    // Sidama
+    "sidama": "Sidama",
+    // Southwest region common variants
+    "south west": "South West",
+    "southwest": "South West",
+  }
+  if (map[n]) return map[n]
+  // Title-case fallback for unknowns
+  return raw
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ")
+}
+
 // Get unique regions from the data
 export function getUniqueRegions(assets: ProcessedAsset[]): string[] {
   const regions = new Set<string>()
+  const isNameOnly = (s: string) => s.trim() !== '' && !/\d/.test(s)
   assets.forEach(asset => {
-    if (asset.poletical && asset.poletical.trim() !== '') {
-      regions.add(asset.poletical)
+    const candidate = asset.region || asset.poletical
+    if (candidate) {
+      const norm = normalizeRegionName(candidate)
+      if (norm && isNameOnly(norm)) regions.add(norm)
     }
   })
   return Array.from(regions).sort()
 }
 
-=======
->>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
 // Compute metrics from processed assets
 export function computeMetrics(assets: ProcessedAsset[]) {
   const towers = assets.filter(a => a.source === "tower")
   const substations = assets.filter(a => a.source === "substation")
-<<<<<<< HEAD
   const generationPlants = assets.filter(a => a.source === "generation_plant")
   const transmissionLines = assets.filter(a => a.source === "transmission_line")
   
@@ -356,8 +393,6 @@ export function computeMetrics(assets: ProcessedAsset[]) {
     generationPlants: generationPlants.length,
     transmissionLines: transmissionLines.length
   })
-=======
->>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
 
   const activeSubstations = substations.filter(s =>
     (s.voltage_le && s.voltage_le > 0) || s.voltage_sp
@@ -373,13 +408,10 @@ export function computeMetrics(assets: ProcessedAsset[]) {
   const powerGeneratedMW = activeSubstations * 50 + Math.random() * 1000
 
   return {
-<<<<<<< HEAD
     totalTowers: towers.length,
     totalSubstations: substations.length,
     totalGenerationPlants: generationPlants.length,
     totalTransmissionLines: transmissionLines.length,
-=======
->>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
     totalAssets: assets.length,
     activeSubstations,
     faultAlerts,
@@ -426,16 +458,12 @@ export function exportToCSV(data: ProcessedAsset[], filename: string = 'grid_ass
     'Political Region',
     'Voltage Level',
     'Voltage Specification',
-<<<<<<< HEAD
     'Link Name',
     'Plant Type',
     'Capacity MW',
     'Year Operational',
     'Line Voltage',
     'Line Length KM'
-=======
-    'Link Name'
->>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
   ]
 
   // Convert data to CSV rows
@@ -455,16 +483,12 @@ export function exportToCSV(data: ProcessedAsset[], filename: string = 'grid_ass
       `"${asset.poletical || ''}"`,
       asset.voltage_le || '',
       `"${asset.voltage_sp || ''}"`,
-<<<<<<< HEAD
       `"${asset.name_link || ''}"`,
       `"${asset.plant_type || ''}"`,
       asset.capacity_mw || '',
       `"${asset.year_operational || ''}"`,
       asset.line_voltage || '',
       asset.line_length_km || ''
-=======
-      `"${asset.name_link || ''}"`
->>>>>>> 84061cf73c66a09a4f9d9542250c164b87a3ac9d
     ].join(','))
   ]
 

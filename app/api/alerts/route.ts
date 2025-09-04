@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ alerts: filteredAlerts })
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: "Failed to fetch alerts" }, { status: 500 })
   }
 }
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 })
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: "Failed to process request" }, { status: 500 })
   }
 }

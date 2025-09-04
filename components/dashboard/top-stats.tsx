@@ -20,6 +20,7 @@ interface TopStatsProps {
 export function TopStats({ assets }: TopStatsProps) {
   const [stats, setStats] = useState({
     totalAssets: 0,
+    totalTowers: 0,
     activeSubstations: 0,
     faultAlerts: 0,
     systemLoad: 0,
@@ -34,8 +35,8 @@ export function TopStats({ assets }: TopStatsProps) {
 
   const statCards = [
     {
-      title: "Total Assets",
-      value: stats.totalAssets.toLocaleString(),
+      title: "Towers",
+      value: stats.totalTowers.toLocaleString(),
       icon: Building2,
       color: "text-blue-600 dark:text-blue-400",
       bgColor: "bg-blue-100 dark:bg-blue-500/10",

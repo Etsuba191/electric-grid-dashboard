@@ -57,9 +57,9 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
   const filteredItems = menuItems.filter((item) => !item.admin || userRole === "admin")
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-blue-600 dark:bg-slate-900 border-r border-blue-700 dark:border-slate-800">
+    <div className="flex flex-col h-full bg-blue-600 dark:bg-background border-r border-blue-700 dark:border-border">
       {/* Header */}
-      <div className="p-4 border-b border-blue-700 dark:border-slate-800">
+      <div className="p-4 border-b border-blue-700 dark:border-border">
         <div className="flex items-center justify-between">
           {(isOpen || isMobile) && (
             <div className="flex items-center space-x-2">
@@ -76,7 +76,7 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
       </div>
 
       {/* Profile Section */}
-      <div className="p-4 border-b border-blue-700 dark:border-slate-800">
+      <div className="p-4 border-b border-blue-700 dark:border-border">
         <div className="flex items-center space-x-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src="/placeholder.svg?height=40&width=40" />
@@ -108,8 +108,8 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
                 variant="ghost"
                 className={`w-full justify-start ${
                   currentPage === item.id
-                    ? "bg-blue-700 text-white dark:bg-slate-800 dark:text-white"
-                    : "text-white hover:bg-blue-500/40 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800"
+                    ? "bg-blue-700 text-white dark:bg-accent dark:text-accent-foreground"
+                    : "text-white hover:bg-blue-500/40 dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-accent-foreground"
                 } ${!(isOpen || isMobile) ? "px-2" : ""}`}
                 onClick={() => {
                   onPageChange(item.id)
@@ -126,7 +126,7 @@ export function Sidebar({ isOpen, onToggle, userRole, onRoleChange, currentPage,
 
       {/* Theme Toggle and Logout */}
       {(isOpen || isMobile) && (
-        <div className="p-4 border-t border-blue-700 dark:border-slate-800 mt-auto space-y-4">
+        <div className="p-4 border-t border-blue-700 dark:border-border mt-auto space-y-4">
           <div className="flex items-center justify-between text-sm text-white dark:text-slate-400">
             <span>Theme</span>
             <Button

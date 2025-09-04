@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { generateRandomPassword, hashPassword } from "@/lib/utils";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await getServerSession(authOptions);
-  const userRole = (session?.user as any)?.role?.toLowerCase();
+  const userRole = session?.user?.role?.toLowerCase();
   if (!session || userRole !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
 // POST: Add a new user (admin only)
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  const userRole = (session?.user as any)?.role?.toLowerCase();
+  const userRole = session?.user?.role?.toLowerCase();
   if (!session || userRole !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -31,18 +32,21 @@ export async function POST(req: NextRequest) {
   if (existing) {
     return NextResponse.json({ error: "User already exists" }, { status: 400 });
   }
-  // Create user with a random password (should be reset by user)
-  const passwordHash = ""; // You may want to generate a random password and hash it
+  // Generate and hash a random password
+  const randomPassword = generateRandomPassword();
+  const passwordHash = await hashPassword(randomPassword);
+
   const user = await prisma.user.create({
     data: { name, email, role, passwordHash },
   });
+  console.log(`New user ${user.email} created with temporary password: ${randomPassword}`);
   return NextResponse.json({ user });
 }
 
 // DELETE: Delete a user (admin only)
 export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  const userRole = (session?.user as any)?.role?.toLowerCase();
+  const userRole = session?.user?.role?.toLowerCase();
   if (!session || userRole !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -55,7 +59,7 @@ export async function DELETE(req: NextRequest) {
 // PATCH: Update a user (admin only)
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  const userRole = (session?.user as any)?.role?.toLowerCase();
+  const userRole = session?.user?.role?.toLowerCase();
   if (!session || userRole !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

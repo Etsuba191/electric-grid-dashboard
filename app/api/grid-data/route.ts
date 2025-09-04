@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     if (assetType) where.type = assetType
 
     const assets = await prisma.gridAsset.findMany({ where })
+    console.log("Fetched assets from DB:", assets);
 
     // Statistics (example, you can expand as needed)
     const statistics = {
@@ -33,13 +34,14 @@ export async function GET(request: NextRequest) {
     // Default: return all assets
     return NextResponse.json({ assets, statistics })
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: "Failed to fetch grid data" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
-  const userRole = (session?.user as any)?.role?.toLowerCase()
+  const userRole = session?.user?.role?.toLowerCase()
   if (!session || userRole !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true })
     }
     return NextResponse.json({ error: "Invalid action" }, { status: 400 })
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: "Failed to process request" }, { status: 500 })
   }
 }

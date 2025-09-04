@@ -1,16 +1,12 @@
-import { getServerSession } from 'next-auth/next';
-import { redirect } from 'next/navigation';
-import { authOptions } from '@/lib/auth';
-import DashboardClient from '@/components/dashboard/DashboardClient';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import DashboardClient from "@/components/dashboard/DashboardClient";
 
-export default async function UserDashboard() {
+export default async function UserDashboardPage() {
   const session = await getServerSession(authOptions);
-  if (!session) {
-    redirect('/login');
-  }
-  if ((session.user as any).role === 'ADMIN') {
-    redirect('/dashboard/admin');
-  }
-  const user = session.user as any;
-  return <DashboardClient userEmail={user.email || ''} userRole={user.role?.toLowerCase() === 'admin' ? 'admin' : 'user'} />;
+  if (!session) redirect("/login");
+  const role = session.user?.role?.toLowerCase();
+  if (role === "admin") redirect("/dashboard/admin");
+  return <DashboardClient userEmail={session.user?.email || ""} userRole="user" />;
 }

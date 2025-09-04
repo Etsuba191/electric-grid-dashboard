@@ -7,7 +7,7 @@ export default async function PostLoginRedirectPage() {
   if (!session) {
     redirect("/login");
   }
-  const role = (session.user as any)?.role;
+  const role = session.user?.role;
   if (role === "ADMIN") {
     redirect("/admin");
   }

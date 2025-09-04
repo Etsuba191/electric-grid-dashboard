@@ -21,8 +21,19 @@ export default function LoginPage() {
       setError("Invalid email or password");
     } else {
       setError("");
-      // redirect handled by NextAuth callbacks or manually
-      window.location.href = "/dashboard";
+      // Fetch session to get role and redirect accordingly
+      try {
+        const sessRes = await fetch("/api/auth/session");
+        const sess = await sessRes.json();
+        const role = (sess?.user?.role || "").toLowerCase();
+        if (role === "admin") {
+          window.location.href = "/dashboard/admin";
+        } else {
+          window.location.href = "/dashboard/user";
+        }
+      } catch {
+        window.location.href = "/dashboard";
+      }
     }
   };
 

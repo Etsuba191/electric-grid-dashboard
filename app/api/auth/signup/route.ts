@@ -18,9 +18,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "User already exists" }, { status: 400 });
     }
 
-    // Save as hash.js and run: node hash.js
-const bcrypt = require('bcryptjs');
-bcrypt.hash('yourpassword', 12).then(console.log);
+        const passwordHash = await bcrypt.hash(password, 12);
       // Always set role to USER, ignore any frontend value
     // Create user in database
       const user = await prisma.user.create({

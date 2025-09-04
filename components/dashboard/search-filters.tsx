@@ -8,11 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Search, Filter, X, MapPin, Zap, AlertTriangle } from "lucide-react"
 import type { ProcessedAsset } from "@/lib/processed-data"
+import { getUniqueRegions } from "@/lib/processed-data"
 
 interface SearchFiltersProps {
   assets: ProcessedAsset[]
   filters: {
-    location: string
+    region: string
     assetType: string
     alertSeverity: string
     searchQuery: string
@@ -33,7 +34,7 @@ export function SearchFilters({ assets, filters, onFiltersChange, userRole }: Se
 
   const clearFilters = () => {
     onFiltersChange({
-      location: "",
+      region: "",
       assetType: "",
       alertSeverity: "",
       searchQuery: "",
@@ -43,65 +44,33 @@ export function SearchFilters({ assets, filters, onFiltersChange, userRole }: Se
   const activeFiltersCount = Object.values(filters).filter((value) => value !== "").length
 
   // Build dynamic options from dataset
-  const { regions, locations, assetTypes, alertSeverities } = useMemo(() => {
+  const { assetTypes, alertSeverities, regions } = useMemo(() => {
     const locSet = new Set<string>()
     const typeSet = new Set<string>()
     const sevSet = new Set<string>()
 
-    // Predefined regions
-    const regions = [
-      "Addis Abeba",
-      "Oromiya", 
-      "Tigray",
-      "Amhara",
-      "South",
-      "Somali",
-      "Afar",
-      "Dire Dawa",
-      "Benishangul",
-      "Gambela"
-    ]
-
-    // Loop through assets and collect type, location, and severity
-    let hasLow = false
-    let hasMedium = false
-    let hasHigh = false
-    let hasCritical = false
-
     for (const a of assets) {
       if (a.source) typeSet.add(a.source)
-
-      // Locations
-      if (a.source === "tower") {
-        if (a.zone) locSet.add(a.zone)
-        if (a.woreda) locSet.add(a.woreda)
-        if (a.site) locSet.add(a.site)
-      } else if (a.poletical) {
-        locSet.add(a.poletical)
-      }
+      if (a.poletical || a.region) locSet.add(a.poletical || a.region!)
 
       // Severities
       if (a.source === "tower") {
-        const s = (a.status || "").toUpperCase()
-        if (s === "WARNING") hasHigh = true
-        if (s === "CRITICAL") hasCritical = true
-        if (s && s !== "GOOD" && s !== "EXCELLENT" && s !== "WARNING" && s !== "CRITICAL") hasMedium = true
+        const s = (a.status || "").toUpperCase();
+        if (s === "CRITICAL" || s === "POOR") sevSet.add("critical");
+        else if (s === "WARNING" || s === "FAIR") sevSet.add("high");
+        else if (s === "GOOD" || s === "EXCELLENT" || s === "NORMAL") sevSet.add("low");
+        else sevSet.add("medium"); // for maintenance or other statuses
       } else {
         const missingVoltage = !(a.voltage_le && a.voltage_le > 0) && !a.voltage_sp
-        if (missingVoltage) hasMedium = true
+        if (missingVoltage) sevSet.add("medium");
+        else sevSet.add("low");
       }
     }
 
-    if (hasLow) sevSet.add("low")
-    if (hasMedium) sevSet.add("medium")
-    if (hasHigh) sevSet.add("high")
-    if (hasCritical) sevSet.add("critical")
-
     return {
-      regions,
-      locations: Array.from(locSet).sort((a, b) => a.localeCompare(b)),
       assetTypes: Array.from(typeSet),
       alertSeverities: Array.from(sevSet),
+      regions: getUniqueRegions(assets),
     }
   }, [assets])
 
@@ -111,7 +80,7 @@ export function SearchFilters({ assets, filters, onFiltersChange, userRole }: Se
       <div className="relative flex-1 max-w-md">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-500 dark:text-slate-400" />
         <Input
-          placeholder="Search assets, locations, or alerts..."
+          placeholder="Search assets, regions, or alerts..."
           value={filters.searchQuery}
           onChange={(e) => updateFilter("searchQuery", e.target.value)}
           className="pl-10 bg-white dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400"
@@ -143,46 +112,7 @@ export function SearchFilters({ assets, filters, onFiltersChange, userRole }: Se
                 )}
               </div>
 
-              {/* Region Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Region</label>
-                <Select value={filters.location} onValueChange={(value) => updateFilter("location", value)}>
-                  <SelectTrigger className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white">
-                    <SelectValue placeholder="Select region" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 max-h-64 overflow-auto">
-                    {regions.map((region) => (
-                      <SelectItem key={region} value={region}>
-                        <div className="flex items-center space-x-2">
-                          <MapPin className="h-4 w-4" />
-                          <span>{region}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Location Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Location</label>
-                <Select value={filters.location} onValueChange={(value) => updateFilter("location", value)}>
-                  <SelectTrigger className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white">
-                    <SelectValue placeholder="Select location" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 max-h-64 overflow-auto">
-                    {locations.map((location) => (
-                      <SelectItem key={location} value={location}>
-                        <div className="flex items-center space-x-2">
-                          <MapPin className="h-4 w-4" />
-                          <span>{location}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
+              
               {/* Asset Type Filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Asset Type</label>
@@ -198,6 +128,21 @@ export function SearchFilters({ assets, filters, onFiltersChange, userRole }: Se
                           <span>{type}</span>
                         </div>
                       </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Region Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Region</label>
+                <Select value={filters.region} onValueChange={(value) => updateFilter("region", value)}>
+                  <SelectTrigger className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white">
+                    <SelectValue placeholder="Select region" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600">
+                    {regions.map((r) => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

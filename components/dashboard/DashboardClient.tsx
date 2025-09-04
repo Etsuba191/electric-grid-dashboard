@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useMemo } from "react";
 import { LeafletMap } from "@/components/dashboard/leaflet-map";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { TopStats } from "@/components/dashboard/top-stats";
@@ -13,10 +14,9 @@ import { UsersPage } from "@/components/pages/users";
 import { SettingsPage } from "@/components/pages/settings";
 import { AboutPage } from "@/components/pages/about";
 import { Toaster } from "@/components/ui/toaster";
-import { convertToEthiopianGridAssets } from "@/lib/processed-data";
+import { convertToEthiopianGridAssets, ProcessedAsset, loadProcessedAssets, normalizeRegionName } from "@/lib/processed-data";
 
 export default function DashboardClient({
-  userEmail,
   userRole: initialUserRole,
 }: {
   userEmail: string;
@@ -25,17 +25,15 @@ export default function DashboardClient({
   const [userRole, setUserRole] = useState<"admin" | "user">(initialUserRole);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [mapCenter] = useState<[number, number]>([9.145, 40.4897]);
-  const [mapZoom] = useState<number>(7);
   const [filters, setFilters] = useState({
-    location: "",
+    region: "",
     assetType: "",
     alertSeverity: "",
     searchQuery: "",
   });
   const [currentPage, setCurrentPage] = useState("dashboard");
-  const [gridAssets, setGridAssets] = useState<any[]>([]);
-  const [zoneData, setZoneData] = useState<any>(null);
+  const [gridAssets, setGridAssets] = useState<ProcessedAsset[]>([]);
+  const [zoneData, setZoneData] = useState<ProcessedAsset | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,9 +41,8 @@ export default function DashboardClient({
     const loadData = async () => {
       try {
         setLoading(true);
-        const res = await fetch("/api/grid-data?type=assets");
-        const data = await res.json();
-        setGridAssets(data.assets || []);
+        const data = await loadProcessedAssets();
+        setGridAssets(data || []);
         setZoneData(null);
       } catch (error) {
         console.error("Failed to load grid assets:", error);
@@ -56,40 +53,37 @@ export default function DashboardClient({
     loadData();
   }, []);
 
-  const addAsset = async (asset: any) => {
-    const res = await fetch("/api/grid-data", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "create_asset", data: asset }),
-    });
-    if (res.ok) {
-      const { asset: newAsset } = await res.json();
-      setGridAssets((prev) => [...prev, newAsset]);
-    }
-  };
+  const filteredGridAssets = useMemo(() => {
+    let data = gridAssets
 
-  const updateAsset = async (id: string, updates: any) => {
-    const res = await fetch("/api/grid-data", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "update_asset", assetId: id, data: updates }),
-    });
-    if (res.ok) {
-      const { asset: updated } = await res.json();
-      setGridAssets((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    // Asset Type filter (global)
+    if (filters.assetType) {
+      data = data.filter(a => a.source === filters.assetType)
     }
-  };
 
-  const deleteAsset = async (id: string) => {
-    const res = await fetch("/api/grid-data", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete_asset", assetId: id }),
-    });
-    if (res.ok) {
-      setGridAssets((prev) => prev.filter((a) => a.id !== id));
+    // Region filter (global)
+    if (filters.region) {
+      data = data.filter(a => normalizeRegionName(a.region || a.poletical) === filters.region)
     }
-  };
+
+    // Alert Severity filter (global)
+    if (filters.alertSeverity) {
+      const bucket = (a: ProcessedAsset): 'low' | 'medium' | 'high' | 'critical' => {
+        if (a.source === 'tower') {
+          const s = String(a.status || '').toUpperCase()
+          if (s === 'CRITICAL' || s === 'POOR') return 'critical'
+          if (s === 'WARNING' || s === 'FAIR') return 'high'
+          if (s === 'GOOD' || s === 'EXCELLENT' || s === 'NORMAL') return 'low'
+          return 'medium' // for maintenance or other statuses
+        }
+        const missingVoltage = !(a.voltage_le && a.voltage_le > 0) && !a.voltage_sp
+        return missingVoltage ? 'medium' : 'low';
+      }
+      data = data.filter(a => bucket(a) === filters.alertSeverity)
+    }
+
+    return data
+  }, [gridAssets, filters])
 
   const renderCurrentPage = () => {
     if (loading) {
@@ -102,32 +96,32 @@ export default function DashboardClient({
 
     switch (currentPage) {
       case "grid":
-        return <GridStatus assets={gridAssets} />;
+        return <GridStatus assets={filteredGridAssets} />;
       case "analytics":
-        return <Analytics assets={gridAssets} />;
+        return <Analytics assets={filteredGridAssets} />;
       case "alerts":
-        const ethiopianGridAssets = convertToEthiopianGridAssets(gridAssets);
+        const ethiopianGridAssets = convertToEthiopianGridAssets(filteredGridAssets);
         return <AlertsPage assets={ethiopianGridAssets} />;
       case "users":
         return <UsersPage />;
       case "settings":
-        return <SettingsPage assets={gridAssets} />;
+        return <SettingsPage assets={filteredGridAssets} />;
       case "about":
-        return <AboutPage assets={gridAssets} />;
+        return <AboutPage assets={filteredGridAssets} />;
       case "map":
-        return <LeafletMap assets={gridAssets} zoneData={zoneData} filters={filters} userRole={userRole} />;
+        return <LeafletMap assets={filteredGridAssets} zoneData={zoneData} filters={filters} userRole={userRole} />;
       case "dashboard":
       default:
         return (
           <div className="space-y-6">
-            <SearchFilters assets={gridAssets} filters={filters} onFiltersChange={setFilters} userRole={userRole} />
-            <TopStats assets={gridAssets} />
+            <SearchFilters assets={gridAssets} filters={filters as any} onFiltersChange={setFilters as any} userRole={userRole} />
+            <TopStats assets={filteredGridAssets} />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
               <div className="lg:col-span-2 space-y-4 md:space-y-6">
                 <ChartsSection filters={filters} selectedDate={selectedDate!} userRole={userRole} />
               </div>
               <div className="space-y-4 md:space-y-6">
-                {selectedDate && <CalendarWidget selectedDate={selectedDate} onDateChange={setSelectedDate} assets={gridAssets} />}
+                {selectedDate && <CalendarWidget selectedDate={selectedDate} onDateChange={setSelectedDate} assets={filteredGridAssets} />}
               </div>
             </div>
           </div>

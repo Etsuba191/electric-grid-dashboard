@@ -5,21 +5,22 @@ import { redirect } from "next/navigation";
 import Dashboard from "@/components/dashboard/DashboardClient"; // Client component
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions as any);
+  const session = await getServerSession(authOptions);
 
   if (!session) {
     redirect("/login");
   }
 
-  const user = (session as any).user as { role?: string };
+  const user = session.user;
+  const role = user?.role?.toLowerCase();
 
-  if (user?.role === "ADMIN") {
+  if (role === "admin") {
     redirect("/dashboard/admin");
-  } else if (user?.role === "USER") {
+  } else if (role === "user") {
     redirect("/dashboard/user");
   } else {
-    redirect("/select-role");
+    redirect("/login");
   }
 
-  return <Dashboard />;
+  return null; // This page only redirects
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Zap, AlertTriangle, CheckCircle, Settings, Search, Info, Download } from "lucide-react"
 import type { ProcessedAsset } from "@/lib/processed-data"
-import { exportToCSV } from "@/lib/processed-data"
+import { exportToCSV, getUniqueRegions, normalizeRegionName } from "@/lib/processed-data"
 
 interface GridStatusProps {
   assets: ProcessedAsset[]
@@ -19,6 +19,8 @@ export function GridStatus({ assets }: GridStatusProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [typeFilter, setTypeFilter] = useState("all")
+  const [regionFilter, setRegionFilter] = useState("all")
+  const regionOptions = useMemo(() => getUniqueRegions(assets), [assets])
 
   useEffect(() => {
     let filtered = assets
@@ -53,8 +55,13 @@ export function GridStatus({ assets }: GridStatusProps) {
       filtered = filtered.filter((a) => (a.source === "tower" ? (a.status || "").toLowerCase() === statusFilter : false))
     }
 
+    if (regionFilter !== "all") {
+      const region = regionFilter
+      filtered = filtered.filter((a) => normalizeRegionName(a.region || a.poletical) === region)
+    }
+
     setFilteredAssets(filtered)
-  }, [assets, searchQuery, statusFilter, typeFilter])
+  }, [assets, searchQuery, statusFilter, typeFilter, regionFilter])
 
   const getStatusIcon = (asset: ProcessedAsset) => {
     if (asset.source === "tower") {
@@ -110,7 +117,7 @@ export function GridStatus({ assets }: GridStatusProps) {
       </div>
 
       {/* Filters */}
-      <Card className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+      <Card className="bg-card border-border">
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
@@ -119,14 +126,14 @@ export function GridStatus({ assets }: GridStatusProps) {
                 placeholder="Search towers/substations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white"
+                className="pl-10"
               />
             </div>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full sm:w-48 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white">
+              <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filter by type" />
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600">
+              <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="tower">Electric Towers</SelectItem>
                 <SelectItem value="substation">Substations</SelectItem>
@@ -135,16 +142,27 @@ export function GridStatus({ assets }: GridStatusProps) {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white">
+              <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filter by status (towers)" />
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600">
+              <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="good">Good</SelectItem>
                 <SelectItem value="excellent">Excellent</SelectItem>
                 <SelectItem value="warning">Warning</SelectItem>
                 <SelectItem value="critical">Critical</SelectItem>
                 <SelectItem value="maintenance">Maintenance</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={regionFilter} onValueChange={setRegionFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Filter by region" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Regions</SelectItem>
+                {regionOptions.map((r) => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -156,7 +174,7 @@ export function GridStatus({ assets }: GridStatusProps) {
         {filteredAssets.slice(0, 50).map((asset) => {
           const StatusIcon = getStatusIcon(asset)
           return (
-            <Card key={asset.id} className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/70 transition-colors">
+            <Card key={asset.id} className="bg-card border-border hover:bg-accent/50 transition-colors">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg text-slate-900 dark:text-white truncate">
@@ -242,9 +260,14 @@ export function GridStatus({ assets }: GridStatusProps) {
                     </>
                   ) : null}
                   <div className="flex justify-between">
-                    <span className="text-blue-600 dark:text-slate-400">Lat/Lng:</span>
-                    <span className="text-slate-900 dark:text-white">{asset.lat.toFixed(3)}, {asset.lng.toFixed(3)}</span>
-                  </div>
+  <span className="text-blue-600 dark:text-slate-400">Lat/Lng:</span>
+  <span className="text-slate-900 dark:text-white">
+    {asset.lat !== undefined && asset.lng !== undefined
+      ? `${asset.lat.toFixed(3)}, ${asset.lng.toFixed(3)}`
+      : "N/A"}
+  </span>
+</div>
+
                 </div>
               </CardContent>
             </Card>
@@ -253,7 +276,7 @@ export function GridStatus({ assets }: GridStatusProps) {
       </div>
 
       {filteredAssets.length > 50 && (
-        <Card className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-4 text-center">
             <p className="text-slate-600 dark:text-slate-400">Showing 50 of {filteredAssets.length} assets. Use filters to narrow down results.</p>
           </CardContent>
