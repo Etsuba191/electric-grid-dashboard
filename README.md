@@ -12,9 +12,29 @@ An advanced electric grid monitoring dashboard built with React that visualizes 
 
 📂 Left-side navigation menu with:
 
+
+Admin User
+
+ADMIN
+Ethiopian Power Grid
+
+Dashboard
+
+Grid Status
+
+Analytics
+
+Grid Map
+
+Alerts
+
+User Management
+
 Settings
 
-Authors
+About
+
+Theme
 
 Data Management
 
@@ -22,12 +42,13 @@ Data Management
 
 🌙 Light/Dark theme toggle
 
-🌐 Multi-language support
-
 👥 User/Admin roles for data management
 
 🛠 Tech Stack
+
 Frontend: React + TypeScript
+
+Framework: Next.js
 
 Styling: Tailwind CSS
 
@@ -35,8 +56,8 @@ Maps: Leaflet + OpenStreetMap
 
 Charts: Recharts / Chart.js
 
-Backend : Node.js + Express
+Backend: Next.js API Routes
 
-Database: PostgreSQL / MongoDB
+Database: Prisma + SQLite
 
 
