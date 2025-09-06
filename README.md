@@ -40,4 +40,4 @@ Charts: Recharts / Chart.js
 
 Backend: Next.js API Routes
 
-Database: Prisma + SQLite
+Database: Prisma + PostgreSQL
